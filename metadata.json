@@ -1,0 +1,6 @@
+{
+  "name": "Islam Quran AI",
+  "description": "World-class premium AI-powered Islamic ecosystem and Quran companion with integrated admin control.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
