@@ -398,6 +398,8 @@ class IslamQuranViewModel(application: Application) : AndroidViewModel(applicati
     // Audio Sync State
     var isAudioPlaying by mutableStateOf(false)
         private set
+    var isAudioBuffering by mutableStateOf(false)
+    var audioErrorMessage by mutableStateOf<String?>(null)
     var activeVerseIndex by mutableStateOf(0)
         private set
     var audioProgress by mutableStateOf(0f)
@@ -470,6 +472,8 @@ class IslamQuranViewModel(application: Application) : AndroidViewModel(applicati
 
     private fun playCurrentVerseAudio() {
         audioJob?.cancel()
+        isAudioBuffering = true
+        audioErrorMessage = null
         
         try {
             mediaPlayer?.stop()
@@ -482,6 +486,7 @@ class IslamQuranViewModel(application: Application) : AndroidViewModel(applicati
         val currentVerse = selectedSurah.verses.getOrNull(activeVerseIndex)
         if (currentVerse == null) {
             isAudioPlaying = false
+            isAudioBuffering = false
             return
         }
 
@@ -489,6 +494,9 @@ class IslamQuranViewModel(application: Application) : AndroidViewModel(applicati
             "Sheikh Mishary Al-Afasy" -> "Alafasy_128kbps"
             "Sheikh Abdul Rahman Al-Sudais" -> "Abdurrahmaan_As-Sudais_128kbps"
             "Sheikh Saad Al-Ghamdi" -> "Ghamadi_40kbps"
+            "Sheikh Abdul Basit Samad" -> "Abdul_Basit_Murattal_192kbps"
+            "Sheikh Maher Al-Muaiqly" -> "MaherAlMuaiqly128kbps"
+            "Sheikh Mahmoud Al-Hussary" -> "Hussary_128kbps"
             else -> "Alafasy_128kbps"
         }
         val surahStr = String.format("%03d", selectedSurah.id)
@@ -506,6 +514,8 @@ class IslamQuranViewModel(application: Application) : AndroidViewModel(applicati
                 setDataSource(audioUrl)
                 prepareAsync()
             } catch (e: Exception) {
+                audioErrorMessage = "Stream failed, using local simulation"
+                isAudioBuffering = false
                 startSimulationFallback()
             }
         }
@@ -513,6 +523,7 @@ class IslamQuranViewModel(application: Application) : AndroidViewModel(applicati
         mediaPlayer = mp
 
         mp.setOnPreparedListener {
+            isAudioBuffering = false
             if (isAudioPlaying) {
                 applyPlaybackSpeed(it)
                 it.start()
@@ -606,6 +617,7 @@ class IslamQuranViewModel(application: Application) : AndroidViewModel(applicati
 
     fun stopAudio() {
         isAudioPlaying = false
+        isAudioBuffering = false
         audioJob?.cancel()
         audioJob = null
         try {

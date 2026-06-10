@@ -796,6 +796,55 @@ fun ActionGridCard(
 }
 
 // ==========================================
+// AUDIO WAVE VISUALIZER
+// ==========================================
+@Composable
+fun AudioWaveVisualizer(isPlaying: Boolean, modifier: Modifier = Modifier) {
+    val infiniteTransition = rememberInfiniteTransition(label = "wave")
+    val heights = (0..5).map { index ->
+        val duration = when (index) {
+            0 -> 600
+            1 -> 850
+            2 -> 700
+            3 -> 950
+            4 -> 550
+            else -> 800
+        }
+        if (isPlaying) {
+            infiniteTransition.animateFloat(
+                initialValue = 0.15f,
+                targetValue = 1.0f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(
+                        durationMillis = duration
+                    ),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "bar_$index"
+            ).value
+        } else {
+            0.15f
+        }
+    }
+
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        heights.forEach { heightVal ->
+            Box(
+                modifier = Modifier
+                    .width(2.5.dp)
+                    .fillMaxHeight(heightVal)
+                    .clip(RoundedCornerShape(1.2.dp))
+                    .background(MaterialTheme.colorScheme.secondary)
+            )
+        }
+    }
+}
+
+// ==========================================
 // 2. QURAN READER SCREEN
 // ==========================================
 @Composable
@@ -1489,6 +1538,15 @@ fun QuranReaderScreen(viewModel: IslamQuranViewModel) {
                             )
                         }
 
+                        if (viewModel.isAudioPlaying) {
+                            AudioWaveVisualizer(
+                                isPlaying = !viewModel.isAudioBuffering,
+                                modifier = Modifier
+                                    .height(18.dp)
+                                    .padding(horizontal = 8.dp)
+                            )
+                        }
+
                         // Top right: Collapsed mini-controls, or Expand arrow
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -1510,12 +1568,20 @@ fun QuranReaderScreen(viewModel: IslamQuranViewModel) {
                                         .size(32.dp)
                                         .background(MaterialTheme.colorScheme.secondary, CircleShape)
                                 ) {
-                                    Icon(
-                                        imageVector = if (viewModel.isAudioPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                        contentDescription = "Control",
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(18.dp)
-                                    )
+                                    if (viewModel.isAudioBuffering) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(16.dp),
+                                            color = MaterialTheme.colorScheme.primary,
+                                            strokeWidth = 2.dp
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = if (viewModel.isAudioPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                            contentDescription = "Control",
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
                                 }
 
                                 IconButton(
@@ -1583,7 +1649,7 @@ fun QuranReaderScreen(viewModel: IslamQuranViewModel) {
                         )
                     }
 
-                    // EXPANDED PANEL DETAILS
+                     // EXPANDED PANEL DETAILS
                     AnimatedVisibility(
                         visible = isAudioPanelExpanded,
                         enter = fadeIn() + expandVertically(),
@@ -1595,6 +1661,25 @@ fun QuranReaderScreen(viewModel: IslamQuranViewModel) {
                             Spacer(modifier = Modifier.height(14.dp))
                             Divider(color = Color.White.copy(alpha = 0.1f))
                             Spacer(modifier = Modifier.height(14.dp))
+
+                            // Custom Stream Alert Message if failed / falling back
+                            viewModel.audioErrorMessage?.let { errMsg ->
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = 12.dp)
+                                        .background(Color.Red.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+                                        .border(1.dp, Color.Red.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                                ) {
+                                    Text(
+                                        text = errMsg,
+                                        color = Color.White,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
 
                             // Large center play pause
                             Row(
@@ -1620,12 +1705,20 @@ fun QuranReaderScreen(viewModel: IslamQuranViewModel) {
                                         .size(64.dp)
                                         .background(MaterialTheme.colorScheme.secondary, CircleShape)
                                 ) {
-                                    Icon(
-                                        imageVector = if (viewModel.isAudioPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                        contentDescription = "Play/Pause",
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(36.dp)
-                                    )
+                                    if (viewModel.isAudioBuffering) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(28.dp),
+                                            color = MaterialTheme.colorScheme.primary,
+                                            strokeWidth = 3.dp
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = if (viewModel.isAudioPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                            contentDescription = "Play/Pause",
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(36.dp)
+                                        )
+                                    }
                                 }
 
                                 Spacer(modifier = Modifier.width(16.dp))
@@ -1654,7 +1747,10 @@ fun QuranReaderScreen(viewModel: IslamQuranViewModel) {
                             val reciters = listOf(
                                 "Sheikh Mishary Al-Afasy",
                                 "Sheikh Abdul Rahman Al-Sudais",
-                                "Sheikh Saad Al-Ghamdi"
+                                "Sheikh Saad Al-Ghamdi",
+                                "Sheikh Abdul Basit Samad",
+                                "Sheikh Maher Al-Muaiqly",
+                                "Sheikh Mahmoud Al-Hussary"
                             )
 
                             LazyRow(
@@ -3070,7 +3166,14 @@ fun MoreSettingsScreen(
                     .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), RoundedCornerShape(12.dp))
                     .padding(8.dp)
             ) {
-                val reciters = listOf("Sheikh Mishary Al-Afasy", "Sheikh Abdul Rahman Al-Sudais", "Sheikh Saad Al-Ghamdi")
+                val reciters = listOf(
+                    "Sheikh Mishary Al-Afasy",
+                    "Sheikh Abdul Rahman Al-Sudais",
+                    "Sheikh Saad Al-Ghamdi",
+                    "Sheikh Abdul Basit Samad",
+                    "Sheikh Maher Al-Muaiqly",
+                    "Sheikh Mahmoud Al-Hussary"
+                )
                 reciters.forEach { reciter ->
                     Text(
                         text = reciter,
