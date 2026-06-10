@@ -10,7 +10,7 @@
 
 Developed with ❤️ for the Muslim Ummah.
 
-### ✨ Made by Halal Production
+### ✨ Made by Hamed Hussein - Halal Production
 
 ![kotlin](https://img.shields.io/badge/kotlin-3.x-blue)
 ![Android](https://img.shields.io/badge/Android-8.0+-green)
