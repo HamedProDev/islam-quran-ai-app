@@ -16,12 +16,14 @@ object PrayerTimeCalculator {
 
     /**
      * Calculates prayer times for a given date, coordinates, and timezone offset.
-     * Uses Muslim World League standard conventions (Fajr = 18°, Isha = 17° or 18°).
+     * Uses configured angles for Fajr and Isha.
      */
     fun calculate(
         latitude: Double,
         longitude: Double,
         timezoneOffsetHours: Double,
+        fajrAngle: Double = 18.0,
+        ishaAngle: Double = 17.0,
         calendar: Calendar = Calendar.getInstance()
     ): PrayerTimes {
         val dayOfYear = calendar.get(Calendar.DAY_OF_YEAR)
@@ -64,12 +66,12 @@ object PrayerTimeCalculator {
         val sunriseSunAlt = Math.toRadians(-0.833)
         var sunriseHourAngle = calculateHourAngle(sunriseSunAlt, latRad, declination)
         
-        // Hour Angle for Fajr (Alt angle = -18.0 degrees)
-        val fajrSunAlt = Math.toRadians(-18.0)
+        // Hour Angle for Fajr (Configured angle)
+        val fajrSunAlt = Math.toRadians(-fajrAngle)
         var fajrHourAngle = calculateHourAngle(fajrSunAlt, latRad, declination)
         
-        // Hour Angle for Isha (Alt angle = -17.0 degrees)
-        val ishaSunAlt = Math.toRadians(-17.0)
+        // Hour Angle for Isha (Configured angle)
+        val ishaSunAlt = Math.toRadians(-ishaAngle)
         var ishaHourAngle = calculateHourAngle(ishaSunAlt, latRad, declination)
         
         // Asr Calculation (Shafi standard: Shadow factor = 1)

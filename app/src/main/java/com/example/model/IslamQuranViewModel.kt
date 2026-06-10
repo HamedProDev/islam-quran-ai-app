@@ -969,6 +969,16 @@ class IslamQuranViewModel(application: Application) : AndroidViewModel(applicati
         "Isha" to true
     ))
 
+    var activeCalculationMethod by mutableStateOf("Muslim World League")
+
+    val calculationMethods = listOf(
+        "Muslim World League",
+        "Islamic Society of North America (ISNA)",
+        "Egyptian General Authority of Survey",
+        "University of Islamic Sciences, Karachi",
+        "Umm Al-Qura University, Makkah"
+    )
+
     var calculatedPrayerTimes by mutableStateOf(
         com.example.api.PrayerTimeCalculator.calculate(51.5074, -0.1278, 0.0)
     )
@@ -981,12 +991,54 @@ class IslamQuranViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun recalculatePrayerTimes() {
+        val (methodId, fajrAngle, ishaAngle) = when (activeCalculationMethod) {
+            "Islamic Society of North America (ISNA)" -> Triple(2, 15.0, 15.0)
+            "Egyptian General Authority of Survey" -> Triple(5, 19.5, 17.5)
+            "University of Islamic Sciences, Karachi" -> Triple(1, 18.0, 18.0)
+            "Umm Al-Qura University, Makkah" -> Triple(4, 18.5, 18.0)
+            else -> Triple(3, 18.0, 17.0) // MWL
+        }
+
+        // Apply offline calculation immediately as instant state feedback
         calculatedPrayerTimes = com.example.api.PrayerTimeCalculator.calculate(
             userLatitude,
             userLongitude,
             activeTimezoneOffset,
-            java.util.Calendar.getInstance()
+            fajrAngle = fajrAngle,
+            ishaAngle = ishaAngle,
+            calendar = java.util.Calendar.getInstance()
         )
+
+        // Then asynchronously fetch live Aladhan API for highest accuracy
+        viewModelScope.launch {
+            try {
+                val times = withContext(Dispatchers.IO) {
+                    val urlStr = "https://api.aladhan.com/v1/timings?latitude=$userLatitude&longitude=$userLongitude&method=$methodId"
+                    val url = java.net.URL(urlStr)
+                    val connection = url.openConnection() as java.net.HttpURLConnection
+                    connection.requestMethod = "GET"
+                    connection.connectTimeout = 4000
+                    connection.readTimeout = 4000
+                    
+                    val responseText = connection.inputStream.bufferedReader().use { it.readText() }
+                    val json = org.json.JSONObject(responseText)
+                    val data = json.getJSONObject("data")
+                    val timings = data.getJSONObject("timings")
+                    
+                    com.example.api.PrayerTimeCalculator.PrayerTimes(
+                        fajr = timings.getString("Fajr"),
+                        sunrise = timings.getString("Sunrise"),
+                        dhuhr = timings.getString("Dhuhr"),
+                        asr = timings.getString("Asr"),
+                        maghrib = timings.getString("Maghrib"),
+                        isha = timings.getString("Isha")
+                    )
+                }
+                calculatedPrayerTimes = times
+            } catch (e: Exception) {
+                android.util.Log.e("IslamQuranViewModel", "Aladhan API load failed: ${e.localizedMessage}")
+            }
+        }
     }
 
     fun togglePrayerNotification(prayerName: String) {

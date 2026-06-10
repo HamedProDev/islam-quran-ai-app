@@ -2711,6 +2711,74 @@ fun PrayerToolsScreen(viewModel: IslamQuranViewModel) {
                             }
                         }
 
+                        // 1.5. CALCULATION CONVENTION SELECTOR
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "CALCULATION CONVENTION",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
+                            modifier = Modifier.padding(horizontal = 20.dp),
+                            letterSpacing = 1.sp
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        GlassmorphicCard(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp, vertical = 6.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(4.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                viewModel.calculationMethods.forEach { method ->
+                                    val isSelected = viewModel.activeCalculationMethod == method
+                                    val bgTrans by animateColorAsState(
+                                        targetValue = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.02f),
+                                        animationSpec = tween(250)
+                                    )
+                                    val borderAlpha by animateFloatAsState(
+                                        targetValue = if (isSelected) 0.25f else 0.04f,
+                                        animationSpec = tween(250)
+                                    )
+                                    val textWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.SemiBold
+                                    val textColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.61f)
+
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(bgTrans)
+                                            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = borderAlpha), RoundedCornerShape(10.dp))
+                                            .clickable {
+                                                viewModel.activeCalculationMethod = method
+                                                viewModel.recalculatePrayerTimes()
+                                            }
+                                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = method.uppercase(),
+                                            fontSize = 10.sp,
+                                            fontWeight = textWeight,
+                                            color = textColor,
+                                            letterSpacing = 0.5.sp
+                                        )
+                                        if (isSelected) {
+                                            Icon(
+                                                imageVector = Icons.Default.CheckCircle,
+                                                contentDescription = "Selected",
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         // 2. DAILY PRAYER TIMINGS WITH NOTIFICATION CONFIGS
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
