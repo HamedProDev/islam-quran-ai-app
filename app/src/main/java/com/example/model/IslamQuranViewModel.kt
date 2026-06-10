@@ -24,6 +24,27 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
 import com.google.firebase.auth.FirebaseAuth
 
+import android.content.Context
+import android.location.Location
+import android.location.LocationListener
+import android.location.LocationManager
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Intent
+import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
+import android.os.Build
+import android.Manifest
+import android.content.pm.PackageManager
+import com.example.api.PrayerTimeCalculator
+import java.net.URL
+import org.json.JSONObject
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
+import java.util.TimeZone
+
 enum class AppTab {
     HOME, QURAN, AI_ASSISTANT, PRAYER, MORE
 }
@@ -762,6 +783,202 @@ class IslamQuranViewModel(application: Application) : AndroidViewModel(applicati
 
     // --- Prayer & Tools State ---
     var selectedCity by mutableStateOf("London, UK")
+    var userLatitude by mutableStateOf(51.5074)
+    var userLongitude by mutableStateOf(-0.1278)
+    var activeTimezoneOffset by mutableStateOf(0.0)
+    var isAutoLocationEnabled by mutableStateOf(true)
+    var isLocationLoading by mutableStateOf(false)
+    var locationErrorMsg by mutableStateOf<String?>(null)
+
+    // Track status of notifications for each prayer: key is prayer, value is status
+    var prayerNotificationSettings = mutableStateOf(mapOf(
+        "Fajr" to true,
+        "Sunrise" to false,
+        "Dhuhr" to true,
+        "Asr" to true,
+        "Maghrib" to true,
+        "Isha" to true
+    ))
+
+    var calculatedPrayerTimes by mutableStateOf(
+        com.example.api.PrayerTimeCalculator.calculate(51.5074, -0.1278, 0.0)
+    )
+
+    init {
+        val tz = java.util.TimeZone.getDefault()
+        val calendar = java.util.Calendar.getInstance()
+        activeTimezoneOffset = tz.getOffset(calendar.timeInMillis) / 3600000.0
+        recalculatePrayerTimes()
+    }
+
+    fun recalculatePrayerTimes() {
+        calculatedPrayerTimes = com.example.api.PrayerTimeCalculator.calculate(
+            userLatitude,
+            userLongitude,
+            activeTimezoneOffset,
+            java.util.Calendar.getInstance()
+        )
+    }
+
+    fun togglePrayerNotification(prayerName: String) {
+        val current = prayerNotificationSettings.value
+        val isCurrentlyEnabled = current[prayerName] ?: false
+        prayerNotificationSettings.value = current + (prayerName to !isCurrentlyEnabled)
+    }
+
+    fun updateManualCoordinates(latitude: Double, longitude: Double, cityName: String) {
+        userLatitude = latitude
+        userLongitude = longitude
+        selectedCity = cityName
+        recalculatePrayerTimes()
+    }
+
+    fun fetchLocationByIp() {
+        isLocationLoading = true
+        locationErrorMsg = null
+        viewModelScope.launch {
+            try {
+                val response = withContext(Dispatchers.IO) {
+                    URL("http://ip-api.com/json").readText()
+                }
+                val json = JSONObject(response)
+                if (json.getString("status") == "success") {
+                    val lat = json.getDouble("lat")
+                    val lon = json.getDouble("lon")
+                    val city = json.getString("city")
+                    val country = json.getString("country")
+                    val rawOffset = json.getInt("offset") // in seconds
+                    
+                    withContext(Dispatchers.Main) {
+                        userLatitude = lat
+                        userLongitude = lon
+                        activeTimezoneOffset = rawOffset / 3600.0
+                        selectedCity = "$city, $country"
+                        recalculatePrayerTimes()
+                        isLocationLoading = false
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        isLocationLoading = false
+                        locationErrorMsg = "IP Autodetect could not resolve location"
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    isLocationLoading = false
+                    locationErrorMsg = "Error resolving location via IP: ${e.localizedMessage}"
+                }
+            }
+        }
+    }
+
+    fun requestAndRefreshLocation(context: Context) {
+        isLocationLoading = true
+        locationErrorMsg = null
+        
+        val hasFine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val hasCoarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        
+        if (!hasFine && !hasCoarse) {
+            fetchLocationByIp()
+            return
+        }
+
+        try {
+            val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+            val isGpsEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
+            val isNetworkEnabled = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+
+            if (!isGpsEnabled && !isNetworkEnabled) {
+                fetchLocationByIp()
+                return
+            }
+
+            var locationFetched = false
+            
+            val lastKnownGps = if (isGpsEnabled) {
+                locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+            } else null
+
+            val lastKnownNetwork = if (isNetworkEnabled) {
+                locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+            } else null
+
+            val bestLocation = lastKnownGps ?: lastKnownNetwork
+
+            if (bestLocation != null) {
+                userLatitude = bestLocation.latitude
+                userLongitude = bestLocation.longitude
+                selectedCity = "My Location (${String.format("%.3f", userLatitude)}, ${String.format("%.3f", userLongitude)})"
+                recalculatePrayerTimes()
+                isLocationLoading = false
+                locationFetched = true
+            }
+
+            if (!locationFetched) {
+                fetchLocationByIp()
+            }
+        } catch (e: SecurityException) {
+            fetchLocationByIp()
+        } catch (e: Exception) {
+            fetchLocationByIp()
+        }
+    }
+
+    fun triggerTestNotification(context: Context, prayerName: String, prayerTime: String) {
+        val channelId = "prayer_alerts_channel"
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                channelId,
+                "Prayer Alerts",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Periodic alerts reminding believers when daily prayers are due."
+                enableLights(true)
+                lightColor = android.graphics.Color.GREEN
+                enableVibration(true)
+            }
+            notificationManager.createNotificationChannel(channel)
+        }
+
+        val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            0,
+            launchIntent,
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            } else {
+                PendingIntent.FLAG_UPDATE_CURRENT
+            }
+        )
+
+        val quote = when (prayerName) {
+            "Fajr" -> "Prayer is better than sleep. Make time for spiritual remembrance."
+            "Dhuhr" -> "A moment in quiet communication with your Creator, parsing the busy day."
+            "Asr" -> "Guard strictly your habit of five prayers, especially the middle prayer."
+            "Maghrib" -> "At sunset, we bow to thank the Sustained and Merciful Provider."
+            "Isha" -> "Conclude your day with peace, seeking night forgiveness and alignment."
+            else -> "Indeed, prayer has been decreed upon the believers a decree of specified times."
+        }
+
+        val notification = NotificationCompat.Builder(context, channelId)
+            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+            .setContentTitle("Adhan: $prayerName is Due ($prayerTime)")
+            .setContentText(quote)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(quote))
+            .build()
+
+        notificationManager.notify(System.currentTimeMillis().toInt(), notification)
+    }
+
     var qiblaAngle by mutableStateOf((30..330).random().toFloat()) // Simulated dynamic compass angle
     var activeRamadanDay by mutableStateOf(9)
     var isRamadanChecked by mutableStateOf(true)

@@ -166,18 +166,58 @@ fun MainHeader(
 }
 
 // ==========================================
-// 1. HOME SCREEN (MAIN DASHBOARD)
-// ==========================================
 @Composable
 fun HomeScreen(viewModel: IslamQuranViewModel) {
     val scrollState = rememberScrollState()
-    
-    // Countdown simulation for prayer
-    var secondsLeft by remember { mutableStateOf(5820) } // Fajr countdown example
-    LaunchedEffect(key1 = true) {
+    val times = viewModel.calculatedPrayerTimes
+
+    var nextPrayerName by remember { mutableStateOf("Fajr") }
+    var secondsLeft by remember { mutableStateOf(3600) }
+
+    fun updateCountdown() {
+        val now = java.util.Calendar.getInstance()
+        val currSecs = now.get(java.util.Calendar.HOUR_OF_DAY) * 3600 + 
+                       now.get(java.util.Calendar.MINUTE) * 60 + 
+                       now.get(java.util.Calendar.SECOND)
+
+        fun parseToSecs(timeStr: String): Int {
+            return try {
+                val parts = timeStr.split(":")
+                parts[0].toInt() * 3600 + parts[1].toInt() * 60
+            } catch (e: Exception) {
+                0
+            }
+        }
+
+        val pList = listOf(
+            "Fajr" to parseToSecs(times.fajr),
+            "Sunrise" to parseToSecs(times.sunrise),
+            "Dhuhr" to parseToSecs(times.dhuhr),
+            "Asr" to parseToSecs(times.asr),
+            "Maghrib" to parseToSecs(times.maghrib),
+            "Isha" to parseToSecs(times.isha)
+        )
+
+        var found = false
+        for (p in pList) {
+            if (p.second > currSecs) {
+                nextPrayerName = p.first
+                secondsLeft = p.second - currSecs
+                found = true
+                break
+            }
+        }
+
+        if (!found) {
+            nextPrayerName = "Fajr"
+            secondsLeft = ((24 * 3600) - currSecs) + pList[0].second
+        }
+    }
+
+    LaunchedEffect(times) {
         while (true) {
+            updateCountdown()
             delay(1000)
-            if (secondsLeft > 0) secondsLeft--
         }
     }
     
@@ -479,7 +519,7 @@ fun HomeScreen(viewModel: IslamQuranViewModel) {
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "Fajr begins in",
+                        text = "$nextPrayerName begins in",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = MaterialTheme.colorScheme.primary
@@ -501,9 +541,16 @@ fun HomeScreen(viewModel: IslamQuranViewModel) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                val prayerList = listOf("Fajr" to "03:52", "Dhuhr" to "13:02", "Asr" to "17:01", "Maghrib" to "21:12", "Isha" to "22:50")
+                val prayerList = listOf(
+                    "Fajr" to times.fajr,
+                    "Sunrise" to times.sunrise,
+                    "Dhuhr" to times.dhuhr,
+                    "Asr" to times.asr,
+                    "Maghrib" to times.maghrib,
+                    "Isha" to times.isha
+                )
                 prayerList.forEach { (pName, pTime) ->
-                    val isActive = pName == "Fajr"
+                    val isActive = pName == nextPrayerName
                     val itemBg = if (isActive) {
                         MaterialTheme.colorScheme.primary
                     } else {
@@ -1931,152 +1978,179 @@ fun AiAssistantScreen(viewModel: IslamQuranViewModel) {
     Column(modifier = Modifier.fillMaxSize()) {
         MainHeader(viewModel = viewModel, title = "Islam Quran AI")
 
-        // VERIFIED SECURITY BAR GAUGE
+        // VERIFIED SECURITY BAR GAUGE WITH BREATHING/GLOW TRANSITION EFFECT
+        val verifiedBorderAlpha by rememberInfiniteTransition(label = "verified_glow").animateFloat(
+            initialValue = 0.15f,
+            targetValue = 0.45f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 1800, easing = EaseInOutSine),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "border_alpha"
+        )
+        
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 6.dp)
                 .background(
-                    if (viewModel.isVerifiedSourcesMode) MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f)
-                    else MaterialTheme.colorScheme.primary.copy(alpha = 0.05f),
-                    RoundedCornerShape(10.dp)
+                    if (viewModel.isVerifiedSourcesMode) MaterialTheme.colorScheme.secondary.copy(alpha = 0.08f)
+                    else MaterialTheme.colorScheme.primary.copy(alpha = 0.03f),
+                    RoundedCornerShape(12.dp)
                 )
                 .border(
                     1.dp,
-                    if (viewModel.isVerifiedSourcesMode) MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f)
-                    else Color.Transparent,
-                    RoundedCornerShape(10.dp)
+                    if (viewModel.isVerifiedSourcesMode) MaterialTheme.colorScheme.secondary.copy(alpha = verifiedBorderAlpha)
+                    else MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                    RoundedCornerShape(12.dp)
                 )
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .padding(horizontal = 14.dp, vertical = 10.dp)
+                .animateContentSize(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.CheckCircle,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.secondary,
-                    modifier = Modifier.size(16.dp)
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (viewModel.isVerifiedSourcesMode) MaterialTheme.colorScheme.secondary
+                            else MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+                        )
                 )
                 Text(
-                    text = "VERIFIED ISLAMIC SOURCES MODE ON",
-                    fontSize = 11.sp,
+                    text = if (viewModel.isVerifiedSourcesMode) "VERIFIED ACADEMIC AND SCRIPTURAL DATABASE IN ACTION" else "GENERAL INQUIRY ACTIVE",
+                    fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
-                    letterSpacing = 0.5.sp
+                    letterSpacing = 0.8.sp
                 )
             }
             
-            // Toggle Verified sources indicator
             IconButton(
                 onClick = { viewModel.isVerifiedSourcesMode = !viewModel.isVerifiedSourcesMode },
                 modifier = Modifier.size(24.dp)
             ) {
                 Icon(
                     imageVector = if (viewModel.isVerifiedSourcesMode) Icons.Default.ToggleOn else Icons.Default.ToggleOff,
-                    contentDescription = "Modes",
-                    tint = MaterialTheme.colorScheme.primary
+                    contentDescription = "Toggle Database Verification",
+                    tint = if (viewModel.isVerifiedSourcesMode) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
                 )
             }
         }
 
-        // CHAT TIMELINE
-        Box(modifier = Modifier.weight(1f)) {
+        // CHAT TIMELINE WITH FADE IN TRANSITION FOR MESSAGES
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+        ) {
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(top = 10.dp, bottom = 10.dp, start = 20.dp, end = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 items(chatState) { msg ->
                     val isAi = msg.sender == "ai"
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = if (isAi) Arrangement.Start else Arrangement.End
+                    
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = true,
+                        enter = fadeIn(animationSpec = tween(durationMillis = 400)) + expandVertically(animationSpec = tween(durationMillis = 400)),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Card(
-                            modifier = Modifier
-                                .widthIn(max = 290.dp)
-                                .testTag("chat_msg_${msg.id}"),
-                            shape = RoundedCornerShape(
-                                topStart = 16.dp,
-                                topEnd = 16.dp,
-                                bottomStart = if (isAi) 4.dp else 16.dp,
-                                bottomEnd = if (isAi) 16.dp else 4.dp
-                            ),
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (isAi) {
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
-                                } else {
-                                    MaterialTheme.colorScheme.primary
-                                }
-                            ),
-                            border = BorderStroke(
-                                1.dp,
-                                if (isAi) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                                else Color.Transparent
-                            )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = if (isAi) Arrangement.Start else Arrangement.End
                         ) {
-                            Column(modifier = Modifier.padding(14.dp)) {
-                                Text(
-                                    text = msg.text,
-                                    fontSize = 13.sp,
-                                    color = if (isAi) MaterialTheme.colorScheme.onBackground else Color.White,
-                                    lineHeight = 18.sp
+                            Card(
+                                modifier = Modifier
+                                    .widthIn(max = 300.dp)
+                                    .testTag("chat_msg_${msg.id}")
+                                    .animateContentSize(),
+                                shape = RoundedCornerShape(
+                                    topStart = 16.dp,
+                                    topEnd = 16.dp,
+                                    bottomStart = if (isAi) 4.dp else 16.dp,
+                                    bottomEnd = if (isAi) 16.dp else 4.dp
+                                ),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (isAi) {
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                                    } else {
+                                        MaterialTheme.colorScheme.primary
+                                    }
+                                ),
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (isAi) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+                                    else Color.Transparent
                                 )
-                                
-                                if (isAi && msg.sources.isNotEmpty()) {
-                                    Spacer(modifier = Modifier.height(10.dp))
-                                    Divider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
-                                    Spacer(modifier = Modifier.height(6.dp))
+                            ) {
+                                Column(modifier = Modifier.padding(14.dp)) {
                                     Text(
-                                        text = "VERIFIED BASES:",
-                                        fontSize = 9.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.secondary,
-                                        letterSpacing = 0.5.sp
+                                        text = msg.text,
+                                        fontSize = 13.sp,
+                                        color = if (isAi) MaterialTheme.colorScheme.onBackground else Color.White,
+                                        lineHeight = 19.sp,
+                                        fontWeight = FontWeight.Normal
                                     )
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    msg.sources.forEach { source ->
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Link,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.secondary,
-                                                modifier = Modifier.size(10.dp)
-                                            )
-                                            Text(
-                                                text = source,
-                                                fontSize = 11.sp,
-                                                color = MaterialTheme.colorScheme.primary
-                                            )
+                                    
+                                    if (isAi && msg.sources.isNotEmpty()) {
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                        Divider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(
+                                            text = "VERIFIED SOURCES:",
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.secondary,
+                                            letterSpacing = 0.8.sp
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        msg.sources.forEach { source ->
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                modifier = Modifier.padding(vertical = 2.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Link,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.secondary,
+                                                    modifier = Modifier.size(10.dp)
+                                                )
+                                                Text(
+                                                    text = source,
+                                                    fontSize = 11.sp,
+                                                    color = MaterialTheme.colorScheme.primary,
+                                                    fontWeight = FontWeight.Medium
+                                                )
+                                            }
                                         }
                                     }
-                                }
 
-                                // Interactive save
-                                if (isAi) {
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.End
-                                    ) {
-                                        IconButton(
-                                            onClick = { viewModel.toggleFavoriteMsg(msg.id) },
-                                            modifier = Modifier.size(24.dp)
+                                    if (isAi) {
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.End
                                         ) {
-                                            Icon(
-                                                imageVector = if (msg.isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
-                                                contentDescription = "Save favorite",
-                                                tint = if (msg.isFavorite) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(14.dp)
-                                            )
+                                            IconButton(
+                                                onClick = { viewModel.toggleFavoriteMsg(msg.id) },
+                                                modifier = Modifier.size(24.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = if (msg.isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
+                                                    contentDescription = "Add to Favorites",
+                                                    tint = if (msg.isFavorite) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                                                    modifier = Modifier.size(14.dp)
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -2087,27 +2161,63 @@ fun AiAssistantScreen(viewModel: IslamQuranViewModel) {
 
                 if (viewModel.isAiLoading) {
                     item {
-                        Row(horizontalArrangement = Arrangement.Start) {
-                            Card(
-                                shape = RoundedCornerShape(12.dp),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.05f))
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(12.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                        androidx.compose.animation.AnimatedVisibility(
+                            visible = true,
+                            enter = fadeIn(animationSpec = tween(durationMillis = 300)) + expandVertically(animationSpec = tween(durationMillis = 300))
+                        ) {
+                            Row(horizontalArrangement = Arrangement.Start) {
+                                Card(
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.05f))
                                 ) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(14.dp),
-                                        strokeWidth = 2.dp,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = "Verifying classical texts...",
-                                        fontSize = 11.sp,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        // 3 Pulsating jumps/breathing indicator dots
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            val infiniteTransition = rememberInfiniteTransition(label = "dots_loading")
+                                            val animationDelays = listOf(0, 150, 300)
+                                            
+                                            animationDelays.forEach { delay ->
+                                                val breathingAlpha by infiniteTransition.animateFloat(
+                                                    initialValue = 0.2f,
+                                                    targetValue = 1f,
+                                                    animationSpec = infiniteRepeatable(
+                                                        animation = keyframes {
+                                                            durationMillis = 1000
+                                                            0.2f at delay
+                                                            1.0f at (delay + 300) % 1000
+                                                            0.2f at (delay + 600) % 1000
+                                                            0.2f at 1000
+                                                        },
+                                                        repeatMode = RepeatMode.Restart
+                                                    ),
+                                                    label = "dot_$delay"
+                                                )
+                                                
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(6.dp)
+                                                        .clip(CircleShape)
+                                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = breathingAlpha))
+                                                )
+                                            }
+                                        }
+                                        
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "Consulting verified Islamic resources...",
+                                            fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -2116,16 +2226,67 @@ fun AiAssistantScreen(viewModel: IslamQuranViewModel) {
             }
         }
 
-        // INPUT CONSOLE COMPASS
+        // DYNAMIC SMOOTH SUGGESTIONS ROW (Hides when custom chat builds up to keep clean interface)
+        val suggestionsList = listOf(
+            "Context of patience (Sabr)",
+            "Concept of Khushu in prayer",
+            "Greatness of Surah Al-Fatiha",
+            "Story of Prophet Yusuf"
+        )
+        
+        AnimatedVisibility(
+            visible = chatState.size <= 1 && !viewModel.isAiLoading,
+            enter = fadeIn(animationSpec = tween(durationMillis = 500)) + expandVertically(animationSpec = tween(durationMillis = 500)),
+            exit = fadeOut(animationSpec = tween(durationMillis = 300)) + shrinkVertically(animationSpec = tween(durationMillis = 300))
+        ) {
+            Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                Text(
+                    text = "SUGGESTED DISCOURSE TOPICS",
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+                    letterSpacing = 0.8.sp
+                )
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 6.dp)
+                ) {
+                    items(suggestionsList) { topic ->
+                        Card(
+                            modifier = Modifier
+                                .clickable { viewModel.sendAiPrompt(topic) }
+                                .animateContentSize(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
+                            ),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
+                        ) {
+                            Text(
+                                text = topic,
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // MINIMALIST MODERN INPUT PORTAL
         Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 12.dp),
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(18.dp),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
             ),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
         ) {
             Row(
                 modifier = Modifier
@@ -2133,14 +2294,14 @@ fun AiAssistantScreen(viewModel: IslamQuranViewModel) {
                     .padding(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Clear button
                 IconButton(
-                    onClick = { viewModel.clearChat() }
+                    onClick = { viewModel.clearChat() },
+                    modifier = Modifier.size(40.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Refresh,
-                        contentDescription = "Clear",
-                        tint = MaterialTheme.colorScheme.primary
+                        contentDescription = "Clear Conversation Thread",
+                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.61f)
                     )
                 }
 
@@ -2149,14 +2310,15 @@ fun AiAssistantScreen(viewModel: IslamQuranViewModel) {
                     onValueChange = { viewModel.aiInputText = it },
                     placeholder = {
                         Text(
-                            "Inquire with verified sources...",
+                            "Ask regarding verses or classical insights...",
                             fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f)
                         )
                     },
                     modifier = Modifier
                         .weight(1f)
-                        .testTag("ai_input_text"),
+                        .testTag("ai_input_text")
+                        .padding(horizontal = 4.dp),
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.Transparent,
                         unfocusedContainerColor = Color.Transparent,
@@ -2171,7 +2333,6 @@ fun AiAssistantScreen(viewModel: IslamQuranViewModel) {
                     })
                 )
 
-                // Voice simulator with animation feedback
                 IconButton(
                     onClick = {
                         viewModel.isVoiceActive = !viewModel.isVoiceActive
@@ -2189,12 +2350,12 @@ fun AiAssistantScreen(viewModel: IslamQuranViewModel) {
                 ) {
                     Icon(
                         imageVector = if (viewModel.isVoiceActive) Icons.Default.MicOff else Icons.Default.Mic,
-                        contentDescription = "Voice Input",
-                        tint = if (viewModel.isVoiceActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary
+                        contentDescription = "Voice Assistant Simulator",
+                        tint = MaterialTheme.colorScheme.primary
                     )
                 }
 
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(6.dp))
 
                 IconButton(
                     onClick = { viewModel.sendAiPrompt(viewModel.aiInputText) },
@@ -2205,7 +2366,7 @@ fun AiAssistantScreen(viewModel: IslamQuranViewModel) {
                 ) {
                     Icon(
                         imageVector = Icons.Default.Send,
-                        contentDescription = "Submit hint",
+                        contentDescription = "Send Message",
                         tint = Color.White,
                         modifier = Modifier.size(16.dp)
                     )
@@ -2221,7 +2382,8 @@ fun AiAssistantScreen(viewModel: IslamQuranViewModel) {
 // ==========================================
 @Composable
 fun PrayerToolsScreen(viewModel: IslamQuranViewModel) {
-    var compassExpanded by remember { mutableStateOf(true) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var isCitiesExpanded by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -2231,39 +2393,267 @@ fun PrayerToolsScreen(viewModel: IslamQuranViewModel) {
     ) {
         MainHeader(viewModel = viewModel, title = "Prayer and Qibla Tools")
 
-        // Location Selector Bar
-        Row(
+        // 1. ACTIVE INTEGRATED LOCATION PANEL
+        Spacer(modifier = Modifier.height(12.dp))
+        GlassmorphicCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 6.dp)
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.05f), RoundedCornerShape(12.dp))
-                .clickable {
-                    viewModel.selectedCity = if (viewModel.selectedCity.contains("London")) "Mecca, KSA" else "London, UK"
-                    viewModel.rotateQiblaSimulated()
-                }
-                .padding(horizontal = 14.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(
-                    imageVector = Icons.Default.LocationOn,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.secondary
-                )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "GEOGRAPHIC COORDINATES",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
+                        letterSpacing = 1.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = viewModel.selectedCity,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Lat: ${String.format("%.4f", viewModel.userLatitude)}  |  Lon: ${String.format("%.4f", viewModel.userLongitude)}  |  TZ: UTC ${if (viewModel.activeTimezoneOffset >= 0) "+" else ""}${String.format("%.1f", viewModel.activeTimezoneOffset)}",
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.61f)
+                    )
+                }
+
+                if (viewModel.isLocationLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.LocationOn,
+                        contentDescription = "Location Status",
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+
+            viewModel.locationErrorMsg?.let { error ->
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "DETERMINED LOCATION",
+                    text = error,
                     fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                    color = MaterialTheme.colorScheme.error,
+                    fontWeight = FontWeight.Medium
                 )
             }
-            Text(
-                text = "${viewModel.selectedCity} (AUTODETECTED)",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.primary
-            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Location Action Buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Button(
+                    onClick = { viewModel.requestAndRefreshLocation(context) },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MyLocation,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = Color.White
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("AUTODETECT", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                }
+
+                OutlinedButton(
+                    onClick = { isCitiesExpanded = !isCitiesExpanded },
+                    modifier = Modifier.weight(1f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isCitiesExpanded) Icons.Default.ExpandLess else Icons.Default.LocationCity,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("MANUAL CITY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                }
+            }
+
+            AnimatedVisibility(
+                visible = isCitiesExpanded,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                Column(modifier = Modifier.padding(top = 10.dp)) {
+                    Divider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "SELECT CLASSICAL HORIZONS",
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
+                        letterSpacing = 0.8.sp
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    
+                    val cities = listOf(
+                        Triple("Mecca, KSA", 21.4225, 39.8262),
+                        Triple("London, UK", 51.5074, -0.1278),
+                        Triple("Cairo, Egypt", 30.0444, 31.2357),
+                        Triple("New York, NY", 40.7128, -74.0060),
+                        Triple("Medina, KSA", 24.4672, 39.6111),
+                        Triple("Tokyo, Japan", 35.6762, 139.6503)
+                    )
+
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(cities) { (name, lat, lon) ->
+                            Card(
+                                modifier = Modifier
+                                    .clickable {
+                                        viewModel.updateManualCoordinates(lat, lon, name)
+                                        viewModel.rotateQiblaSimulated()
+                                    },
+                                shape = RoundedCornerShape(8.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (viewModel.selectedCity == name) {
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                    } else {
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.04f)
+                                    }
+                                ),
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (viewModel.selectedCity == name) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f) else Color.Transparent
+                                )
+                            ) {
+                                Text(
+                                    text = name,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. DAILY PRAYER TIMINGS WITH NOTIFICATION CONFIGS
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "CALCULATED DAILY PRAYER TIMES".uppercase(),
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
+            modifier = Modifier.padding(horizontal = 20.dp),
+            letterSpacing = 1.sp
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        val times = viewModel.calculatedPrayerTimes
+        val notificationsMap = viewModel.prayerNotificationSettings.value
+        val prayers = listOf(
+            Triple("Fajr", times.fajr, "Morning Prayer"),
+            Triple("Sunrise", times.sunrise, "Post-Dawn Horizon"),
+            Triple("Dhuhr", times.dhuhr, "Midday Prayer"),
+            Triple("Asr", times.asr, "Afternoon Prayer"),
+            Triple("Maghrib", times.maghrib, "Sunset Prayer"),
+            Triple("Isha", times.isha, "Night Prayer")
+        )
+
+        GlassmorphicCard(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 6.dp)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                prayers.forEach { (pName, pTime, pDesc) ->
+                    val isNotifyEnabled = notificationsMap[pName] ?: false
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.02f), RoundedCornerShape(12.dp))
+                            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.04f), RoundedCornerShape(12.dp))
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column {
+                            Text(
+                                text = pName,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = pDesc,
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                            )
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            Text(
+                                text = pTime,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontFamily = FontFamily.Monospace,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+
+                            IconButton(
+                                onClick = { viewModel.togglePrayerNotification(pName) },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (isNotifyEnabled) Icons.Default.NotificationsActive else Icons.Default.NotificationsOff,
+                                    contentDescription = "Toggle Notification",
+                                    tint = if (isNotifyEnabled) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+
+                            IconButton(
+                                onClick = { viewModel.triggerTestNotification(context, pName, pTime) },
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.06f), CircleShape)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Send,
+                                    contentDescription = "Test Notification Alarm",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         // QIBLA LIVE 3D COMPASS DRAWING CANVAS
