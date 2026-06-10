@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Islam Quran AI Banner](https://via.placeholder.com/1200x400)
+# Islam Quran AI
 
 ### 📖 The Ultimate Islamic AI Companion for Muslims
 
@@ -209,19 +209,6 @@ Unlock:
 * Priority Support
 
 ---
-
-# 📸 Screenshots
-
-| Home       | Quran      | AI Assistant |
-| ---------- | ---------- | ------------ |
-| Screenshot | Screenshot | Screenshot   |
-
-| Prayer Times | Qibla      | Profile    |
-| ------------ | ---------- | ---------- |
-| Screenshot   | Screenshot | Screenshot   |
-
----
-
 # 🛠 Technology Stack
 
 ### Frontend
@@ -249,27 +236,6 @@ Unlock:
 
 ---
 
-# 📂 Project Structure
-
-```text
-lib/
-├── core/
-├── services/
-├── features/
-│   ├── auth/
-│   ├── quran/
-│   ├── ai_chat/
-│   ├── prayer/
-│   ├── qibla/
-│   ├── hadith/
-│   ├── profile/
-│   └── settings/
-├── shared/
-├── widgets/
-└── main.dart
-```
-
----
 
 # 🚀 Installation
 
@@ -355,9 +321,9 @@ For religious rulings (Fatwas), users should consult qualified Islamic scholars 
 
 **Halal Production**
 
-Email: [support@halalproduction.com](mailto:support@halalproduction.com)
+Email: [hamussein01@gmail.com](mailto:hamussein01gmail.com)
 
-Website: https://halalproduction.com
+Founded by Hamed Hussein
 
 ---
 
