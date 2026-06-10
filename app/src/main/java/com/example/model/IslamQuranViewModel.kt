@@ -74,7 +74,164 @@ data class ActivityLog(
     val timestamp: String
 )
 
+data class AdhkarItem(
+    val id: String,
+    val textArabic: String,
+    val transliteration: String,
+    val textEnglish: String,
+    val maxCount: Int,
+    val currentCount: Int,
+    val merit: String
+)
+
 class IslamQuranViewModel(application: Application) : AndroidViewModel(application) {
+
+    // --- Adhkar States and Controls ---
+    var morningAdhkarList by mutableStateOf(listOf(
+        AdhkarItem(
+            id = "m1",
+            textArabic = "أَصْبَحْنَا وَأَصْبَحَ الْمُلْكُ لِلَّهِ، وَالْحَمْدُ لِلَّهِ، لَا إِلَهَ إِلَّا اللهُ وَحْدَهُ لَا شَرِيكَ لَهُ",
+            transliteration = "Asbahna wa-asbahal-mulku lillah, wal-hamdu lillah, la ilaha illallahu wahdahu la sharika lah",
+            textEnglish = "We have entered a new day and with it all dominion belongs to Allah. Praise is to Allah. None has the right to be worshipped but Allah alone, Who has no partner.",
+            maxCount = 1,
+            currentCount = 0,
+            merit = "Expression of pure monotheism and gratitude for a new morning."
+        ),
+        AdhkarItem(
+            id = "m2",
+            textArabic = "اللَّهُمَّ بِكَ أَصْبَحْنَا، وَبِكَ أَمْسَيْنَا، وَبِكَ نَحْيَا، وَبِكَ نَمُوتُ، وَإِلَيْكَ النُّشُورُ",
+            transliteration = "Allahumma bika asbahna, wa bika amsayna, wa bika nahya, wa bika namutu, wa ilaykan-nushur",
+            textEnglish = "O Allah, by Your leave we have reached the morning and by Your leave we have reached the evening, by Your leave we live and by Your leave we die, and unto You is our resurrection.",
+            maxCount = 1,
+            currentCount = 0,
+            merit = "Acknowledges Allah's absolute power over life, death, and daily cycles."
+        ),
+        AdhkarItem(
+            id = "m3",
+            textArabic = "سُبْحَانَ اللهِ وَبِحَمْدِهِ",
+            transliteration = "Subhan-Allahi wa bihamdihi",
+            textEnglish = "Glory be to Allah and His praise.",
+            maxCount = 100,
+            currentCount = 0,
+            merit = "Sins will be forgiven even if they are like the foam of the sea."
+        ),
+        AdhkarItem(
+            id = "m4",
+            textArabic = "يَا حَيُّ يَا قَيُّومُ بِرَحْمَتِكَ أَسْتَغِيثُ، أَصْلِحْ لِي شَأْنِي كُلَّهُ، وَلَا تَكِلْنِي إِلَى نَفْسِي طَرْفَةَ عَيْنٍ",
+            transliteration = "Ya Hayyu ya Qayyumu bi-rahmatika astagheeth, aslih lee sha'nee kullahu, wa la takilnee ila nafsee tarfata 'ayn",
+            textEnglish = "O Ever Living One, O Self-Existing One, by Your mercy I call upon You. Set all my affairs right, and do not leave me to myself even for the blink of an eye.",
+            maxCount = 3,
+            currentCount = 0,
+            merit = "A comprehensive prayer for guidance and rectifying all trials of life."
+        ),
+        AdhkarItem(
+            id = "m5",
+            textArabic = "اللَّهُمَّ أَنْتَ رَبِّي لَا إِلَهَ إِلَّا أَنْتَ، خَلَقْتَنِي وَأَنَا عَبْدُكَ، وَأَنَا عَلَى عَهْدِكَ وَوَعْدِكَ مَا اسْتَطَعْتُ",
+            transliteration = "Allahumma anta Rabbi la ilaha illa anta, khalaqtanee wa ana 'abduka, wa ana 'ala 'ahdika wa wa'dika ma-stata'tu",
+            textEnglish = "O Allah, You are my Lord, there is no deity except You. You created me and I am Your servant, and I remain faithful to Your covenant and promise as much as I can.",
+            maxCount = 1,
+            currentCount = 0,
+            merit = "The chief prayer for forgiveness (Sayyid al-Istighfar). Entering paradise if recited with conviction."
+        )
+    ))
+
+    var eveningAdhkarList by mutableStateOf(listOf(
+        AdhkarItem(
+            id = "e1",
+            textArabic = "أَمْسَيْنَا وَأَمْسَى الْمُلْكُ لِلَّهِ، وَالْحَمْدُ لِلَّهِ، لَا إِلَهَ إِلَّا اللهُ وَحْدَهُ لَا شَرِيكَ لَهُ",
+            transliteration = "Amsayna wa-amsayal-mulku lillah, wal-hamdu lillah, la ilaha illallahu wahdahu la sharika lah",
+            textEnglish = "We have ended the day and with it all dominion belongs to Allah. Praise is to Allah. None has the right to be worshipped but Allah alone, Who has no partner.",
+            maxCount = 1,
+            currentCount = 0,
+            merit = "Expression of monotheism and gratitude for safe passage through the day."
+        ),
+        AdhkarItem(
+            id = "e2",
+            textArabic = "اللَّهُمَّ بِكَ أَمْسَيْنَا، وَبِكَ أَصْبَحْنَا، وَبِكَ نَحْيَا، وَبِكَ نَمُوتُ، وَإِلَيْكَ الْمَصِيرُ",
+            transliteration = "Allahumma bika amsayna, wa bika asbahna, wa bika nahya, wa bika namutu, wa ilaykal-maseer",
+            textEnglish = "O Allah, by Your leave we have reached the evening and by Your leave we have reached the morning, by Your leave we live and by Your leave we die, and unto You is our return.",
+            maxCount = 1,
+            currentCount = 0,
+            merit = "Acknowledges the transition from day to night and our ultimate return."
+        ),
+        AdhkarItem(
+            id = "e3",
+            textArabic = "سُبْحَانَ اللهِ وَبِحَمْدِهِ",
+            transliteration = "Subhan-Allahi wa bihamdihi",
+            textEnglish = "Glory be to Allah and His praise.",
+            maxCount = 100,
+            currentCount = 0,
+            merit = "Whosoever recites this, no one will bring anything better than him on the Day of Resurrection."
+        ),
+        AdhkarItem(
+            id = "e4",
+            textArabic = "أَعُوذُ بِكَلِمَاتِ اللهِ التَّامَّاتِ مِنْ شَرِّ مَا خَلَقَ",
+            transliteration = "A'udhu bi-kalimatillahit-tammati min sharri ma khalaq",
+            textEnglish = "I seek refuge in the perfect words of Allah from the evil of what He has created.",
+            maxCount = 3,
+            currentCount = 0,
+            merit = "Protects from any bite, sting, or poisonous harm during the night."
+        ),
+        AdhkarItem(
+            id = "e5",
+            textArabic = "اللَّهُمَّ أَنْتَ رَبِّي لَا إِلَهَ إِلَّا أَنْتَ، خَلَقْتَنِي وَأَنَا عَبْدُكَ، وَأَنَا عَلَى عَهْدِكَ وَوَعْدِكَ مَا اسْتَطَعْتُ",
+            transliteration = "Allahumma anta Rabbi la ilaha illa anta, khalaqtanee wa ana 'abduka, wa ana 'ala 'ahdika wa wa'dika ma-stata'tu",
+            textEnglish = "O Allah, You are my Lord, there is no deity except You. You created me and I am Your servant, and I remain faithful to Your covenant and promise as much as I can.",
+            maxCount = 1,
+            currentCount = 0,
+            merit = "Sayyid al-Istighfar. Grants paradise if recited in the evening and passing away before morning."
+        )
+    ))
+
+    fun incrementAdhkar(id: String, isMorning: Boolean) {
+        if (isMorning) {
+            morningAdhkarList = morningAdhkarList.map {
+                if (it.id == id && it.currentCount < it.maxCount) {
+                    val nextCount = it.currentCount + 1
+                    if (nextCount == it.maxCount) {
+                        selectAdminActivity("Morning Adhkar fully completed: ${it.id} (${it.maxCount} recitations)", "USER")
+                    }
+                    it.copy(currentCount = nextCount)
+                } else it
+            }
+        } else {
+            eveningAdhkarList = eveningAdhkarList.map {
+                if (it.id == id && it.currentCount < it.maxCount) {
+                    val nextCount = it.currentCount + 1
+                    if (nextCount == it.maxCount) {
+                        selectAdminActivity("Evening Adhkar fully completed: ${it.id} (${it.maxCount} recitations)", "USER")
+                    }
+                    it.copy(currentCount = nextCount)
+                } else it
+            }
+        }
+    }
+
+    fun resetAdhkar(id: String, isMorning: Boolean) {
+        if (isMorning) {
+            morningAdhkarList = morningAdhkarList.map {
+                if (it.id == id) {
+                    it.copy(currentCount = 0)
+                } else it
+            }
+        } else {
+            eveningAdhkarList = eveningAdhkarList.map {
+                if (it.id == id) {
+                    it.copy(currentCount = 0)
+                } else it
+            }
+        }
+    }
+
+    fun resetAllAdhkar(isMorning: Boolean) {
+        if (isMorning) {
+            morningAdhkarList = morningAdhkarList.map { it.copy(currentCount = 0) }
+            selectAdminActivity("Reset all morning adhkar counters", "USER")
+        } else {
+            eveningAdhkarList = eveningAdhkarList.map { it.copy(currentCount = 0) }
+            selectAdminActivity("Reset all evening adhkar counters", "USER")
+        }
+    }
 
     // --- Authentication State ---
     private var firebaseAuthInstance: FirebaseAuth? = null

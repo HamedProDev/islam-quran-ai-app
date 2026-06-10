@@ -2,7 +2,7 @@
 
 <div align="center">
 
-# Islam Quran AI
+![Islam Quran AI Banner](https://via.placeholder.com/1200x400)
 
 ### 📖 The Ultimate Islamic AI Companion for Muslims
 
@@ -10,9 +10,9 @@
 
 Developed with ❤️ for the Muslim Ummah.
 
-### ✨ Made by Hamed Hussein - Halal Production
+### ✨ Made by Halal Production
 
-![kotlin](https://img.shields.io/badge/kotlin-3.x-blue)
+![Flutter](https://img.shields.io/badge/Flutter-3.x-blue)
 ![Android](https://img.shields.io/badge/Android-8.0+-green)
 ![Islamic](https://img.shields.io/badge/Islamic-App-success)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
@@ -209,6 +209,19 @@ Unlock:
 * Priority Support
 
 ---
+
+# 📸 Screenshots
+
+| Home       | Quran      | AI Assistant |
+| ---------- | ---------- | ------------ |
+| Screenshot | Screenshot | Screenshot   |
+
+| Prayer Times | Qibla      | Profile    |
+| ------------ | ---------- | ---------- |
+| Screenshot   | Screenshot | Screenshot   |
+
+---
+
 # 🛠 Technology Stack
 
 ### Frontend
@@ -236,6 +249,27 @@ Unlock:
 
 ---
 
+# 📂 Project Structure
+
+```text
+lib/
+├── core/
+├── services/
+├── features/
+│   ├── auth/
+│   ├── quran/
+│   ├── ai_chat/
+│   ├── prayer/
+│   ├── qibla/
+│   ├── hadith/
+│   ├── profile/
+│   └── settings/
+├── shared/
+├── widgets/
+└── main.dart
+```
+
+---
 
 # 🚀 Installation
 
@@ -321,9 +355,9 @@ For religious rulings (Fatwas), users should consult qualified Islamic scholars 
 
 **Halal Production**
 
-Email: [hamussein01@gmail.com](mailto:hamussein01gmail.com)
+Email: [support@halalproduction.com](mailto:support@halalproduction.com)
 
-Founded by Hamed Hussein
+Website: https://halalproduction.com
 
 ---
 

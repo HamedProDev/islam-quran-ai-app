@@ -41,6 +41,10 @@ import com.example.api.TranslationEdition
 import com.example.ui.theme.CharcoalCard
 import com.example.ui.theme.LightSurface
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import androidx.compose.ui.draw.scale
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.text.font.FontStyle
 
 // --- SHARED GLASSMORPHIC CARD WITH SMOOTH HIGHLIGHTS ---
 @Composable
@@ -2479,501 +2483,957 @@ fun AiAssistantScreen(viewModel: IslamQuranViewModel) {
 @Composable
 fun PrayerToolsScreen(viewModel: IslamQuranViewModel) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    var activeSubTab by remember { mutableStateOf("Timings & Qibla") }
     var isCitiesExpanded by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
             .padding(bottom = 90.dp)
     ) {
         MainHeader(viewModel = viewModel, title = "Prayer and Qibla Tools")
 
-        // 1. ACTIVE INTEGRATED LOCATION PANEL
-        Spacer(modifier = Modifier.height(12.dp))
-        GlassmorphicCard(
+        // Sub-tabs segment selector (no emojis, sleek minimal design with animated transitions)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 8.dp)
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.05f), RoundedCornerShape(12.dp))
+                .padding(2.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            listOf("Timings & Qibla", "Daily Adhkar").forEach { tab ->
+                val isSelected = activeSubTab == tab
+                val bgTrans by animateColorAsState(
+                    targetValue = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                    animationSpec = tween(250)
+                )
+                val textTrans by animateColorAsState(
+                    targetValue = if (isSelected) Color.White else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
+                    animationSpec = tween(250)
+                )
+
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(bgTrans)
+                        .clickable { activeSubTab = tab }
+                        .padding(vertical = 10.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = tab.uppercase(),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = textTrans,
+                        letterSpacing = 0.5.sp
+                    )
+                }
+            }
+        }
+
+        Crossfade(
+            targetState = activeSubTab,
+            animationSpec = tween(300),
+            modifier = Modifier.weight(1f)
+        ) { tab ->
+            when (tab) {
+                "Timings & Qibla" -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        // 1. ACTIVE INTEGRATED LOCATION PANEL
+                        Spacer(modifier = Modifier.height(12.dp))
+                        GlassmorphicCard(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp, vertical = 6.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text(
+                                        text = "GEOGRAPHIC COORDINATES",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
+                                        letterSpacing = 1.sp
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = viewModel.selectedCity,
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = "Lat: ${String.format("%.4f", viewModel.userLatitude)}  |  Lon: ${String.format("%.4f", viewModel.userLongitude)}  |  TZ: UTC ${if (viewModel.activeTimezoneOffset >= 0) "+" else ""}${String.format("%.1f", viewModel.activeTimezoneOffset)}",
+                                        fontSize = 11.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.61f)
+                                    )
+                                }
+
+                                if (viewModel.isLocationLoading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        strokeWidth = 2.dp,
+                                        color = MaterialTheme.colorScheme.secondary
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.LocationOn,
+                                        contentDescription = "Location Status",
+                                        tint = MaterialTheme.colorScheme.secondary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            }
+
+                            viewModel.locationErrorMsg?.let { error ->
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = error,
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.error,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(14.dp))
+
+                            // Location Action Buttons
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Button(
+                                    onClick = { viewModel.requestAndRefreshLocation(context) },
+                                    modifier = Modifier.weight(1f),
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.MyLocation,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                        tint = Color.White
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("AUTODETECT", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                }
+
+                                OutlinedButton(
+                                    onClick = { isCitiesExpanded = !isCitiesExpanded },
+                                    modifier = Modifier.weight(1f),
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = if (isCitiesExpanded) Icons.Default.ExpandLess else Icons.Default.LocationCity,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("MANUAL CITY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+
+                            AnimatedVisibility(
+                                visible = isCitiesExpanded,
+                                enter = fadeIn() + expandVertically(),
+                                exit = fadeOut() + shrinkVertically()
+                            ) {
+                                Column(modifier = Modifier.padding(top = 10.dp)) {
+                                    Divider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "SELECT CLASSICAL HORIZONS",
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
+                                        letterSpacing = 0.8.sp
+                                    )
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    
+                                    val cities = listOf(
+                                        Triple("Mecca, KSA", 21.4225, 39.8262),
+                                        Triple("London, UK", 51.5074, -0.1278),
+                                        Triple("Cairo, Egypt", 30.0444, 31.2357),
+                                        Triple("New York, NY", 40.7128, -74.0060),
+                                        Triple("Medina, KSA", 24.4672, 39.6111),
+                                        Triple("Tokyo, Japan", 35.6762, 139.6503)
+                                    )
+
+                                    LazyRow(
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        items(cities) { (name, lat, lon) ->
+                                            Card(
+                                                modifier = Modifier
+                                                    .clickable {
+                                                        viewModel.updateManualCoordinates(lat, lon, name)
+                                                        viewModel.rotateQiblaSimulated()
+                                                    },
+                                                shape = RoundedCornerShape(8.dp),
+                                                colors = CardDefaults.cardColors(
+                                                    containerColor = if (viewModel.selectedCity == name) {
+                                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                                    } else {
+                                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.04f)
+                                                    }
+                                                ),
+                                                border = BorderStroke(
+                                                    1.dp,
+                                                    if (viewModel.selectedCity == name) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f) else Color.Transparent
+                                                )
+                                            ) {
+                                                Text(
+                                                    text = name,
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // 2. DAILY PRAYER TIMINGS WITH NOTIFICATION CONFIGS
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "CALCULATED DAILY PRAYER TIMES".uppercase(),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
+                            modifier = Modifier.padding(horizontal = 20.dp),
+                            letterSpacing = 1.sp
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        val times = viewModel.calculatedPrayerTimes
+                        val notificationsMap = viewModel.prayerNotificationSettings.value
+                        val prayers = listOf(
+                            Triple("Fajr", times.fajr, "Morning Prayer"),
+                            Triple("Sunrise", times.sunrise, "Post-Dawn Horizon"),
+                            Triple("Dhuhr", times.dhuhr, "Midday Prayer"),
+                            Triple("Asr", times.asr, "Afternoon Prayer"),
+                            Triple("Maghrib", times.maghrib, "Sunset Prayer"),
+                            Triple("Isha", times.isha, "Night Prayer")
+                        )
+
+                        GlassmorphicCard(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp, vertical = 6.dp)
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                prayers.forEach { (pName, pTime, pDesc) ->
+                                    val isNotifyEnabled = notificationsMap[pName] ?: false
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.02f), RoundedCornerShape(12.dp))
+                                            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.04f), RoundedCornerShape(12.dp))
+                                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Column {
+                                            Text(
+                                                text = pName,
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                            Text(
+                                                text = pDesc,
+                                                fontSize = 11.sp,
+                                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                                            )
+                                        }
+
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(14.dp)
+                                        ) {
+                                            Text(
+                                                text = pTime,
+                                                fontSize = 18.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                fontFamily = FontFamily.Monospace,
+                                                color = MaterialTheme.colorScheme.secondary
+                                            )
+
+                                            IconButton(
+                                                onClick = { viewModel.togglePrayerNotification(pName) },
+                                                modifier = Modifier.size(36.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = if (isNotifyEnabled) Icons.Default.NotificationsActive else Icons.Default.NotificationsOff,
+                                                    contentDescription = "Toggle Notification",
+                                                    tint = if (isNotifyEnabled) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+
+                                            IconButton(
+                                                onClick = { viewModel.triggerTestNotification(context, pName, pTime) },
+                                                modifier = Modifier
+                                                    .size(36.dp)
+                                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.06f), CircleShape)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Send,
+                                                    contentDescription = "Test Notification Alarm",
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // QIBLA LIVE 3D COMPASS DRAWING CANVAS
+                        Spacer(modifier = Modifier.height(16.dp))
+                        GlassmorphicCard(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp, vertical = 6.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Interactive Qibla Finder",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = "${viewModel.qiblaAngle.toInt()} degrees North",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.secondary
+                                )
+                            }
+                            
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            // COMPASS ROTATION ENGINE WITH PREMIUM CANVAS
+                            val targetAngle = viewModel.qiblaAngle
+                            val animatedAngle by animateFloatAsState(
+                                targetValue = targetAngle,
+                                animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow)
+                            )
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(200.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                // Background compass drawing circle
+                                val emeraldColor = MaterialTheme.colorScheme.primary
+                                val goldColor = MaterialTheme.colorScheme.secondary
+
+                                Canvas(
+                                    modifier = Modifier
+                                        .size(170.dp)
+                                        .testTag("qibla_compass_canvas")
+                                ) {
+                                    // Outer ring
+                                    drawCircle(
+                                        color = goldColor.copy(alpha = 0.2f),
+                                        radius = size.width / 2f,
+                                        style = Stroke(width = 8.dp.toPx())
+                                    )
+                                    drawCircle(
+                                        color = emeraldColor,
+                                        radius = size.width / 2f - 4.dp.toPx(),
+                                        style = Stroke(width = 2.dp.toPx())
+                                    )
+
+                                    // Draw static circular tick marks
+                                    for (i in 0 until 360 step 30) {
+                                        val angleRad = Math.toRadians(i.toDouble())
+                                        val cosVal = Math.cos(angleRad).toFloat()
+                                        val sinVal = Math.sin(angleRad).toFloat()
+                                        val startPx = size.width / 2f + (size.width / 2f - 14.dp.toPx()) * cosVal
+                                        val startPy = size.height / 2f + (size.height / 2f - 14.dp.toPx()) * sinVal
+                                        val endPx = size.width / 2f + (size.width / 2f - 4.dp.toPx()) * cosVal
+                                        val endPy = size.height / 2f + (size.height / 2f - 4.dp.toPx()) * sinVal
+                                        
+                                        drawLine(
+                                            color = goldColor.copy(alpha = 0.5f),
+                                            start = Offset(startPx, startPy),
+                                            end = Offset(endPx, endPy),
+                                            strokeWidth = 1.5.dp.toPx()
+                                        )
+                                    }
+
+                                    // Rotating indicator needle based on current angle selection
+                                    val rotRad = Math.toRadians(animatedAngle.toDouble() - 90.0) // 0 north adjustment
+                                    val needleCos = Math.cos(rotRad).toFloat()
+                                    val needleSin = Math.sin(rotRad).toFloat()
+
+                                    val centerX = size.width / 2f
+                                    val centerY = size.height / 2f
+                                    val needleLen = size.width / 2f - 20.dp.toPx()
+                                    val targetX = centerX + needleLen * needleCos
+                                    val targetY = centerY + needleLen * needleSin
+
+                                    // Gold pointer tip
+                                    drawLine(
+                                        color = goldColor,
+                                        start = Offset(centerX, centerY),
+                                        end = Offset(targetX, targetY),
+                                        strokeWidth = 4.dp.toPx(),
+                                        cap = StrokeCap.Round
+                                    )
+                                    
+                                    // Small emerald balance bottom tip
+                                    drawLine(
+                                        color = emeraldColor.copy(alpha = 0.4f),
+                                        start = Offset(centerX, centerY),
+                                        end = Offset(centerX - 30.dp.toPx() * needleCos, centerY - 30.dp.toPx() * needleSin),
+                                        strokeWidth = 3.dp.toPx()
+                                    )
+
+                                    // Center pin point
+                                    drawCircle(
+                                        color = goldColor,
+                                        radius = 8.dp.toPx()
+                                    )
+                                    drawCircle(
+                                        color = Color.White,
+                                        radius = 3.dp.toPx()
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+                            
+                            Text(
+                                text = "Hold phone flat. Align the golden direction needle directly with the top center alignment of your screen.",
+                                fontSize = 11.sp,
+                                textAlign = TextAlign.Center,
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            Spacer(modifier = Modifier.height(10.dp))
+                            
+                            Button(
+                                onClick = { viewModel.rotateQiblaSimulated() },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                            ) {
+                                Text("CALIBRATE SENSORS", fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
+                            }
+                        }
+
+                        // RAMADAN FAST TRACKER STATE WIDGET
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Ramadan Progress Tracker".uppercase(),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
+                            modifier = Modifier.padding(horizontal = 20.dp),
+                            letterSpacing = 1.sp
+                        )
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        GlassmorphicCard(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp, vertical = 6.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text(
+                                        text = "Ramadan 1447 AH Calendar",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = "Day ${viewModel.activeRamadanDay} completed successfully",
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                                    )
+                                }
+                                
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Checkbox(
+                                        checked = viewModel.isRamadanChecked,
+                                        onCheckedChange = {
+                                            viewModel.isRamadanChecked = it
+                                            viewModel.selectAdminActivity("Fasting tracker checked day ${viewModel.activeRamadanDay}", "USER")
+                                        },
+                                        colors = CheckboxDefaults.colors(checkedColor = MaterialTheme.colorScheme.secondary)
+                                    )
+                                    Text(
+                                        text = "DAY COMPLETED",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                            
+                            Spacer(modifier = Modifier.height(14.dp))
+                            
+                            // Slider tracker
+                            Slider(
+                                value = viewModel.activeRamadanDay.toFloat(),
+                                onValueChange = { viewModel.activeRamadanDay = it.toInt() },
+                                valueRange = 1f..30f,
+                                steps = 28,
+                                colors = SliderDefaults.colors(
+                                    thumbColor = MaterialTheme.colorScheme.secondary,
+                                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                                    inactiveTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            
+                            Spacer(modifier = Modifier.height(6.dp))
+                            
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(text = "Day 1", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
+                                Text(text = "Day 15 (Midway)", fontSize = 11.sp, color = MaterialTheme.colorScheme.secondary)
+                                Text(text = "Day 30", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
+                            }
+                        }
+                    }
+                }
+                "Daily Adhkar" -> {
+                    AdhkarSection(viewModel = viewModel)
+                }
+            }
+        }
+    }
+}
+
+// ==========================================
+// DAILY ADHKAR COMPOSITION
+// ==========================================
+@Composable
+fun AdhkarSection(viewModel: IslamQuranViewModel) {
+    var isMorningAdhkar by remember { mutableStateOf(true) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(bottom = 8.dp)
+    ) {
+        // Morning/Evening segmented switch
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 6.dp)
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.05f), RoundedCornerShape(12.dp))
+                .padding(3.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = "GEOGRAPHIC COORDINATES",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
-                        letterSpacing = 1.sp
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = viewModel.selectedCity,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "Lat: ${String.format("%.4f", viewModel.userLatitude)}  |  Lon: ${String.format("%.4f", viewModel.userLongitude)}  |  TZ: UTC ${if (viewModel.activeTimezoneOffset >= 0) "+" else ""}${String.format("%.1f", viewModel.activeTimezoneOffset)}",
-                        fontSize = 11.sp,
-                        fontFamily = FontFamily.Monospace,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.61f)
-                    )
-                }
+            listOf("Morning Adhkar", "Evening Adhkar").forEach { section ->
+                val isSelected = (section == "Morning Adhkar" && isMorningAdhkar) || (section == "Evening Adhkar" && !isMorningAdhkar)
+                val bgTrans by animateColorAsState(
+                    targetValue = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                    animationSpec = tween(250)
+                )
+                val textTrans by animateColorAsState(
+                    targetValue = if (isSelected) Color.White else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
+                    animationSpec = tween(250)
+                )
 
-                if (viewModel.isLocationLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.secondary
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.LocationOn,
-                        contentDescription = "Location Status",
-                        tint = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.size(24.dp)
-                    )
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(bgTrans)
+                        .clickable { isMorningAdhkar = (section == "Morning Adhkar") }
+                        .padding(vertical = 10.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (section == "Morning Adhkar") Icons.Default.LightMode else Icons.Default.DarkMode,
+                            contentDescription = null,
+                            tint = textTrans,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = section.uppercase(),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = textTrans,
+                            letterSpacing = 0.5.sp
+                        )
+                    }
                 }
             }
+        }
 
-            viewModel.locationErrorMsg?.let { error ->
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = error,
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.error,
-                    fontWeight = FontWeight.Medium
+        // Action header (Reset all)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = if (isMorningAdhkar) "AM PROTECTION SUPPLICATIONS" else "PM SEIZE THE NIGHT",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
+                letterSpacing = 1.sp
+            )
+            
+            val activeList = if (isMorningAdhkar) viewModel.morningAdhkarList else viewModel.eveningAdhkarList
+            val totalCompleted = activeList.count { it.currentCount == it.maxCount }
+            
+            Text(
+                text = "$totalCompleted / ${activeList.size} COMPLETED",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.secondary,
+                letterSpacing = 0.5.sp
+            )
+        }
+
+        // List of supplications
+        val activeList = if (isMorningAdhkar) viewModel.morningAdhkarList else viewModel.eveningAdhkarList
+
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .weight(1f),
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 6.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            items(activeList, key = { it.id }) { item ->
+                AdhkarItemCard(
+                    item = item,
+                    isMorning = isMorningAdhkar,
+                    onIncrement = { viewModel.incrementAdhkar(item.id, isMorningAdhkar) },
+                    onReset = { viewModel.resetAdhkar(item.id, isMorningAdhkar) }
                 )
             }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Location Action Buttons
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
+            
+            item {
+                Spacer(modifier = Modifier.height(12.dp))
                 Button(
-                    onClick = { viewModel.requestAndRefreshLocation(context) },
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    onClick = { viewModel.resetAllAdhkar(isMorningAdhkar) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.MyLocation,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = Color.White
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Reset All",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("AUTODETECT", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                }
-
-                OutlinedButton(
-                    onClick = { isCitiesExpanded = !isCitiesExpanded },
-                    modifier = Modifier.weight(1f),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Icon(
-                        imageVector = if (isCitiesExpanded) Icons.Default.ExpandLess else Icons.Default.LocationCity,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("MANUAL CITY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                }
-            }
-
-            AnimatedVisibility(
-                visible = isCitiesExpanded,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
-            ) {
-                Column(modifier = Modifier.padding(top = 10.dp)) {
-                    Divider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
-                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "SELECT CLASSICAL HORIZONS",
+                        text = "RESET ALL PROGRESS",
+                        color = MaterialTheme.colorScheme.primary,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp
+                    )
+                }
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+        }
+    }
+}
+
+@Composable
+fun AdhkarItemCard(
+    item: com.example.model.AdhkarItem,
+    isMorning: Boolean,
+    onIncrement: () -> Unit,
+    onReset: () -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val isCompleted = item.currentCount == item.maxCount
+
+    // Core animations for tap effect
+    val progressFraction = item.currentCount.toFloat() / item.maxCount.toFloat()
+    val animatedProgress by animateFloatAsState(
+        targetValue = progressFraction,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow)
+    )
+
+    val scaleState = remember { Animatable(1f) }
+    val coroutineScope = rememberCoroutineScope()
+
+    // Smooth color highlighting when completed
+    val borderAlpha by animateFloatAsState(
+        targetValue = if (isCompleted) 0.6f else 0.15f,
+        animationSpec = tween(500)
+    )
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val secondaryColor = MaterialTheme.colorScheme.secondary
+    val cardBorderColor = if (isCompleted) {
+        secondaryColor.copy(alpha = borderAlpha)
+    } else {
+        primaryColor.copy(alpha = borderAlpha)
+    }
+
+    GlassmorphicCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .scale(scaleState.value),
+        borderStrokeColor = cardBorderColor
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            // Left content space: Supplication text
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) { expanded = !expanded }
+                    .padding(end = 12.dp)
+            ) {
+                // Arabic text with high readability
+                Text(
+                    text = item.textArabic,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    lineHeight = 30.sp,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Right
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Small expand hint without emojis
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.padding(top = 2.dp)
+                ) {
+                    Text(
+                        text = "TAP TEXT TO ENGAGE DETAILS",
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
-                        letterSpacing = 0.8.sp
+                        letterSpacing = 0.5.sp
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    
-                    val cities = listOf(
-                        Triple("Mecca, KSA", 21.4225, 39.8262),
-                        Triple("London, UK", 51.5074, -0.1278),
-                        Triple("Cairo, Egypt", 30.0444, 31.2357),
-                        Triple("New York, NY", 40.7128, -74.0060),
-                        Triple("Medina, KSA", 24.4672, 39.6111),
-                        Triple("Tokyo, Japan", 35.6762, 139.6503)
+                    Icon(
+                        imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
+                        modifier = Modifier.size(14.dp)
                     )
-
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        items(cities) { (name, lat, lon) ->
-                            Card(
-                                modifier = Modifier
-                                    .clickable {
-                                        viewModel.updateManualCoordinates(lat, lon, name)
-                                        viewModel.rotateQiblaSimulated()
-                                    },
-                                shape = RoundedCornerShape(8.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = if (viewModel.selectedCity == name) {
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                                    } else {
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.04f)
-                                    }
-                                ),
-                                border = BorderStroke(
-                                    1.dp,
-                                    if (viewModel.selectedCity == name) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f) else Color.Transparent
-                                )
-                            ) {
-                                Text(
-                                    text = name,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                                )
-                            }
-                        }
-                    }
                 }
-            }
-        }
 
-        // 2. DAILY PRAYER TIMINGS WITH NOTIFICATION CONFIGS
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "CALCULATED DAILY PRAYER TIMES".uppercase(),
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
-            modifier = Modifier.padding(horizontal = 20.dp),
-            letterSpacing = 1.sp
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-
-        val times = viewModel.calculatedPrayerTimes
-        val notificationsMap = viewModel.prayerNotificationSettings.value
-        val prayers = listOf(
-            Triple("Fajr", times.fajr, "Morning Prayer"),
-            Triple("Sunrise", times.sunrise, "Post-Dawn Horizon"),
-            Triple("Dhuhr", times.dhuhr, "Midday Prayer"),
-            Triple("Asr", times.asr, "Afternoon Prayer"),
-            Triple("Maghrib", times.maghrib, "Sunset Prayer"),
-            Triple("Isha", times.isha, "Night Prayer")
-        )
-
-        GlassmorphicCard(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 6.dp)
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                prayers.forEach { (pName, pTime, pDesc) ->
-                    val isNotifyEnabled = notificationsMap[pName] ?: false
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.02f), RoundedCornerShape(12.dp))
-                            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.04f), RoundedCornerShape(12.dp))
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column {
-                            Text(
-                                text = pName,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Text(
-                                text = pDesc,
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
-                            )
-                        }
-
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(14.dp)
-                        ) {
-                            Text(
-                                text = pTime,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                fontFamily = FontFamily.Monospace,
-                                color = MaterialTheme.colorScheme.secondary
-                            )
-
-                            IconButton(
-                                onClick = { viewModel.togglePrayerNotification(pName) },
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    imageVector = if (isNotifyEnabled) Icons.Default.NotificationsActive else Icons.Default.NotificationsOff,
-                                    contentDescription = "Toggle Notification",
-                                    tint = if (isNotifyEnabled) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-
-                            IconButton(
-                                onClick = { viewModel.triggerTestNotification(context, pName, pTime) },
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.06f), CircleShape)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Send,
-                                    contentDescription = "Test Notification Alarm",
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // QIBLA LIVE 3D COMPASS DRAWING CANVAS
-        Spacer(modifier = Modifier.height(16.dp))
-        GlassmorphicCard(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 6.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Interactive Qibla Finder",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Text(
-                    text = "${viewModel.qiblaAngle.toInt()} degrees North",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.secondary
-                )
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // COMPASS ROTATION ENGINE WITH PREMIUM CANVAS
-            val targetAngle = viewModel.qiblaAngle
-            val animatedAngle by animateFloatAsState(
-                targetValue = targetAngle,
-                animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow)
-            )
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                // Background compass drawing circle
-                val emeraldColor = MaterialTheme.colorScheme.primary
-                val goldColor = MaterialTheme.colorScheme.secondary
-
-                Canvas(
-                    modifier = Modifier
-                        .size(170.dp)
-                        .testTag("qibla_compass_canvas")
+                AnimatedVisibility(
+                    visible = expanded,
+                    enter = fadeIn(animationSpec = tween(300)) + expandVertically(animationSpec = tween(300)),
+                    exit = fadeOut(animationSpec = tween(200)) + shrinkVertically(animationSpec = tween(200))
                 ) {
-                    // Outer ring
-                    drawCircle(
-                        color = goldColor.copy(alpha = 0.2f),
-                        radius = size.width / 2f,
-                        style = Stroke(width = 8.dp.toPx())
-                    )
-                    drawCircle(
-                        color = emeraldColor,
-                        radius = size.width / 2f - 4.dp.toPx(),
-                        style = Stroke(width = 2.dp.toPx())
-                    )
+                    Column(
+                        modifier = Modifier.padding(top = 10.dp)
+                    ) {
+                        Divider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                    // Draw static circular tick marks
-                    for (i in 0 until 360 step 30) {
-                        val angleRad = Math.toRadians(i.toDouble())
-                        val cosVal = Math.cos(angleRad).toFloat()
-                        val sinVal = Math.sin(angleRad).toFloat()
-                        val startPx = size.width / 2f + (size.width / 2f - 14.dp.toPx()) * cosVal
-                        val startPy = size.height / 2f + (size.height / 2f - 14.dp.toPx()) * sinVal
-                        val endPx = size.width / 2f + (size.width / 2f - 4.dp.toPx()) * cosVal
-                        val endPy = size.height / 2f + (size.height / 2f - 4.dp.toPx()) * sinVal
-                        
-                        drawLine(
-                            color = goldColor.copy(alpha = 0.5f),
-                            start = Offset(startPx, startPy),
-                            end = Offset(endPx, endPy),
-                            strokeWidth = 1.5.dp.toPx()
+                        Text(
+                            text = "PHONETIC TRANSLITERATION",
+                            fontSize = 8.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.secondary,
+                            letterSpacing = 0.5.sp
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = item.transliteration,
+                            fontSize = 12.sp,
+                            fontStyle = FontStyle.Italic,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                            lineHeight = 16.sp
+                        )
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Text(
+                            text = "ENGLISH TRANSLATION",
+                            fontSize = 8.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            letterSpacing = 0.5.sp
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = item.textEnglish,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                            lineHeight = 16.sp
+                        )
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Text(
+                            text = "REVEALED MERIT",
+                            fontSize = 8.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.secondary,
+                            letterSpacing = 0.5.sp
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = item.merit,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.primary,
+                            lineHeight = 15.sp
+                        )
+                    }
+                }
+            }
+
+            // Right content space: Highly modern circular counter trigger
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(68.dp)
+                        .clip(CircleShape)
+                        .clickable {
+                            if (!isCompleted) {
+                                coroutineScope.launch {
+                                    scaleState.animateTo(0.95f, animationSpec = tween(50))
+                                    onIncrement()
+                                    scaleState.animateTo(1.05f, animationSpec = spring(dampingRatio = 0.6f))
+                                    scaleState.animateTo(1f, animationSpec = spring())
+                                }
+                            }
+                        }
+                        .background(
+                            if (isCompleted) {
+                                secondaryColor.copy(alpha = 0.12f)
+                            } else {
+                                primaryColor.copy(alpha = 0.05f)
+                            }
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // Custom track ring
+                    Canvas(modifier = Modifier.size(60.dp)) {
+                        drawCircle(
+                            color = primaryColor.copy(alpha = 0.08f),
+                            style = Stroke(width = 3.dp.toPx())
                         )
                     }
 
-                    // Rotating indicator needle based on current angle selection
-                    val rotRad = Math.toRadians(animatedAngle.toDouble() - 90.0) // 0 north adjustment
-                    val needleCos = Math.cos(rotRad).toFloat()
-                    val needleSin = Math.sin(rotRad).toFloat()
+                    // Foreground progress arc
+                    Canvas(modifier = Modifier.size(60.dp)) {
+                        drawArc(
+                            color = cardBorderColor,
+                            startAngle = -90f,
+                            sweepAngle = 360f * animatedProgress,
+                            useCenter = false,
+                            style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
+                        )
+                    }
 
-                    val centerX = size.width / 2f
-                    val centerY = size.height / 2f
-                    val needleLen = size.width / 2f - 20.dp.toPx()
-                    val targetX = centerX + needleLen * needleCos
-                    val targetY = centerY + needleLen * needleSin
-
-                    // Gold pointer tip
-                    drawLine(
-                        color = goldColor,
-                        start = Offset(centerX, centerY),
-                        end = Offset(targetX, targetY),
-                        strokeWidth = 4.dp.toPx(),
-                        cap = StrokeCap.Round
-                    )
-                    
-                    // Small emerald balance bottom tip
-                    drawLine(
-                        color = emeraldColor.copy(alpha = 0.4f),
-                        start = Offset(centerX, centerY),
-                        end = Offset(centerX - 30.dp.toPx() * needleCos, centerY - 30.dp.toPx() * needleSin),
-                        strokeWidth = 3.dp.toPx()
-                    )
-
-                    // Center pin point
-                    drawCircle(
-                        color = goldColor,
-                        radius = 8.dp.toPx()
-                    )
-                    drawCircle(
-                        color = Color.White,
-                        radius = 3.dp.toPx()
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-            
-            Text(
-                text = "Hold phone flat. Align the golden direction needle directly with the top center alignment of your screen.",
-                fontSize = 11.sp,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-            
-            Button(
-                onClick = { viewModel.rotateQiblaSimulated() },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-            ) {
-                Text("CALIBRATE SENSORS", fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
-            }
-        }
-
-        // RAMADAN FAST TRACKER STATE WIDGET
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "Ramadan Progress Tracker".uppercase(),
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
-            modifier = Modifier.padding(horizontal = 20.dp),
-            letterSpacing = 1.sp
-        )
-        
-        Spacer(modifier = Modifier.height(8.dp))
-
-        GlassmorphicCard(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 6.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = "Ramadan 1447 AH Calendar",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "Day ${viewModel.activeRamadanDay} completed successfully",
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                    )
-                }
-                
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Checkbox(
-                        checked = viewModel.isRamadanChecked,
-                        onCheckedChange = {
-                            viewModel.isRamadanChecked = it
-                            viewModel.selectAdminActivity("Fasting tracker checked day ${viewModel.activeRamadanDay}", "USER")
+                    // Center text/icon with scale animation
+                    androidx.compose.animation.AnimatedContent(
+                        targetState = isCompleted,
+                        transitionSpec = {
+                            fadeIn() + scaleIn() togetherWith fadeOut() + scaleOut()
                         },
-                        colors = CheckboxDefaults.colors(checkedColor = MaterialTheme.colorScheme.secondary)
-                    )
+                        label = "center_content"
+                    ) { completed ->
+                        if (completed) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "Completed",
+                                tint = MaterialTheme.colorScheme.secondary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        } else {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "${item.currentCount}",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = "OF ${item.maxCount}",
+                                    fontSize = 8.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Individual reset link, animated to appear when count > 0
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = item.currentCount > 0,
+                    enter = fadeIn(animationSpec = tween(200)),
+                    exit = fadeOut(animationSpec = tween(250))
+                ) {
                     Text(
-                        text = "DAY COMPLETED",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        text = "RESET",
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                        modifier = Modifier
+                            .padding(top = 6.dp)
+                            .clickable { onReset() }
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
                     )
                 }
-            }
-            
-            Spacer(modifier = Modifier.height(14.dp))
-            
-            // Slider tracker
-            Slider(
-                value = viewModel.activeRamadanDay.toFloat(),
-                onValueChange = { viewModel.activeRamadanDay = it.toInt() },
-                valueRange = 1f..30f,
-                steps = 28,
-                colors = SliderDefaults.colors(
-                    thumbColor = MaterialTheme.colorScheme.secondary,
-                    activeTrackColor = MaterialTheme.colorScheme.primary,
-                    inactiveTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                ),
-                modifier = Modifier.fillMaxWidth()
-            )
-            
-            Spacer(modifier = Modifier.height(6.dp))
-            
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(text = "Day 1", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
-                Text(text = "Day 15 (Midway)", fontSize = 11.sp, color = MaterialTheme.colorScheme.secondary)
-                Text(text = "Day 30", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
             }
         }
     }
