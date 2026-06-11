@@ -45,6 +45,8 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.draw.scale
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectDragGestures
 
 // --- SHARED GLASSMORPHIC CARD WITH SMOOTH HIGHLIGHTS ---
 @Composable
@@ -2878,6 +2880,105 @@ fun PrayerToolsScreen(viewModel: IslamQuranViewModel) {
 
                         // QIBLA LIVE 3D COMPASS DRAWING CANVAS
                         Spacer(modifier = Modifier.height(16.dp))
+                        
+                        val qiblaBearing = remember(viewModel.userLatitude, viewModel.userLongitude) {
+                            val latMecca = Math.toRadians(21.4225)
+                            val lonMecca = Math.toRadians(39.8262)
+                            val latUser = Math.toRadians(viewModel.userLatitude)
+                            val lonUser = Math.toRadians(viewModel.userLongitude)
+                            val dLon = lonMecca - lonUser
+                            val y = Math.sin(dLon) * Math.cos(latMecca)
+                            val x = Math.cos(latUser) * Math.sin(latMecca) - Math.sin(latUser) * Math.cos(latMecca) * Math.cos(dLon)
+                            var bearing = Math.toDegrees(Math.atan2(y, x))
+                            (bearing + 360.0) % 360.0
+                        }
+
+                        var deviceHeading by remember { mutableStateOf(0f) }
+                        var manualHeadingOffset by remember { mutableStateOf(0f) }
+
+                        val context = androidx.compose.ui.platform.LocalContext.current
+
+                        DisposableEffect(context) {
+                            val sensorManager = context.getSystemService(android.content.Context.SENSOR_SERVICE) as? android.hardware.SensorManager
+                            val rotationSensor = sensorManager?.getDefaultSensor(android.hardware.Sensor.TYPE_ROTATION_VECTOR)
+                                ?: sensorManager?.getDefaultSensor(android.hardware.Sensor.TYPE_ORIENTATION)
+                            
+                            val listener = object : android.hardware.SensorEventListener {
+                                private var accelerometerValues = FloatArray(3)
+                                private var magneticValues = FloatArray(3)
+                                private var hasAccel = false
+                                private var hasMagnet = false
+
+                                override fun onSensorChanged(event: android.hardware.SensorEvent) {
+                                    if (event.sensor.type == android.hardware.Sensor.TYPE_ROTATION_VECTOR) {
+                                        val rotationMatrix = FloatArray(9)
+                                        android.hardware.SensorManager.getRotationMatrixFromVector(rotationMatrix, event.values)
+                                        val orientationValues = FloatArray(3)
+                                        android.hardware.SensorManager.getOrientation(rotationMatrix, orientationValues)
+                                        val azimuthRad = orientationValues[0]
+                                        var azimuthDeg = Math.toDegrees(azimuthRad.toDouble()).toFloat()
+                                        azimuthDeg = (azimuthDeg + 360f) % 360f
+                                        deviceHeading = azimuthDeg
+                                    } else if (event.sensor.type == android.hardware.Sensor.TYPE_ORIENTATION) {
+                                        var azimuthDeg = event.values[0]
+                                        azimuthDeg = (azimuthDeg + 360f) % 360f
+                                        deviceHeading = azimuthDeg
+                                    } else {
+                                        if (event.sensor.type == android.hardware.Sensor.TYPE_ACCELEROMETER) {
+                                            System.arraycopy(event.values, 0, accelerometerValues, 0, 3)
+                                            hasAccel = true
+                                        } else if (event.sensor.type == android.hardware.Sensor.TYPE_MAGNETIC_FIELD) {
+                                            System.arraycopy(event.values, 0, magneticValues, 0, 3)
+                                            hasMagnet = true
+                                        }
+                                        if (hasAccel && hasMagnet) {
+                                            val r = FloatArray(9)
+                                            val i = FloatArray(9)
+                                            if (android.hardware.SensorManager.getRotationMatrix(r, i, accelerometerValues, magneticValues)) {
+                                                val orientation = FloatArray(3)
+                                                android.hardware.SensorManager.getOrientation(r, orientation)
+                                                var azimuthDeg = Math.toDegrees(orientation[0].toDouble()).toFloat()
+                                                azimuthDeg = (azimuthDeg + 360f) % 360f
+                                                deviceHeading = azimuthDeg
+                                            }
+                                        }
+                                    }
+                                }
+
+                                override fun onAccuracyChanged(sensor: android.hardware.Sensor?, accuracy: Int) {}
+                            }
+
+                            if (rotationSensor != null) {
+                                sensorManager?.registerListener(listener, rotationSensor, android.hardware.SensorManager.SENSOR_DELAY_UI)
+                            } else {
+                                val accel = sensorManager?.getDefaultSensor(android.hardware.Sensor.TYPE_ACCELEROMETER)
+                                val magnet = sensorManager?.getDefaultSensor(android.hardware.Sensor.TYPE_MAGNETIC_FIELD)
+                                if (accel != null && magnet != null) {
+                                    sensorManager?.registerListener(listener, accel, android.hardware.SensorManager.SENSOR_DELAY_UI)
+                                    sensorManager?.registerListener(listener, magnet, android.hardware.SensorManager.SENSOR_DELAY_UI)
+                                }
+                            }
+
+                            onDispose {
+                                sensorManager?.unregisterListener(listener)
+                            }
+                        }
+
+                        val currentHeading = (deviceHeading + manualHeadingOffset + 360f) % 360f
+                        val needleAngle = (qiblaBearing.toFloat() - currentHeading + 360f) % 360f
+
+                        val headingDiff = (qiblaBearing - currentHeading + 360.0) % 360.0
+                        val isAligned = headingDiff < 4.5 || headingDiff > 355.5
+
+                        val alignmentGlowAlpha by animateFloatAsState(
+                            targetValue = if (isAligned) 0.35f else 0.05f,
+                            animationSpec = tween(400)
+                        )
+                        val needlePulseScale by animateFloatAsState(
+                            targetValue = if (isAligned) 1.08f else 1.0f,
+                            animationSpec = spring(dampingRatio = 0.5f, stiffness = 150f)
+                        )
+
                         GlassmorphicCard(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -2888,105 +2989,187 @@ fun PrayerToolsScreen(viewModel: IslamQuranViewModel) {
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = "Interactive Qibla Finder",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                                Text(
-                                    text = "${viewModel.qiblaAngle.toInt()} degrees North",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.secondary
-                                )
+                                Column {
+                                    Text(
+                                        text = "INTEGRATED QIBLA LOCATOR",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        letterSpacing = 0.5.sp
+                                    )
+                                    Text(
+                                        text = if (isAligned) "ALIGNED WITH KAABA" else "ROTATE TO ALIGN",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = if (isAligned) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                                    )
+                                }
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text(
+                                        text = "TRUE BEARING",
+                                        fontSize = 8.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
+                                        letterSpacing = 0.5.sp
+                                    )
+                                    Text(
+                                        text = "${String.format("%.1f", qiblaBearing)}° N",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = MaterialTheme.colorScheme.secondary
+                                    )
+                                }
                             }
                             
                             Spacer(modifier = Modifier.height(16.dp))
 
-                            // COMPASS ROTATION ENGINE WITH PREMIUM CANVAS
-                            val targetAngle = viewModel.qiblaAngle
-                            val animatedAngle by animateFloatAsState(
-                                targetValue = targetAngle,
-                                animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow)
-                            )
-
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(200.dp),
+                                    .height(220.dp)
+                                    .pointerInput(Unit) {
+                                        detectDragGestures { change, dragAmount ->
+                                            change.consume()
+                                            manualHeadingOffset = (manualHeadingOffset - dragAmount.x / 3f + 360f) % 360f
+                                        }
+                                    },
                                 contentAlignment = Alignment.Center
                             ) {
-                                // Background compass drawing circle
+                                // Glow aura transitions
+                                Box(
+                                    modifier = Modifier
+                                        .size(190.dp)
+                                        .background(
+                                            Brush.radialGradient(
+                                                colors = listOf(
+                                                    if (isAligned) MaterialTheme.colorScheme.secondary.copy(alpha = alignmentGlowAlpha) else MaterialTheme.colorScheme.primary.copy(alpha = alignmentGlowAlpha),
+                                                    Color.Transparent
+                                                )
+                                            ),
+                                            shape = CircleShape
+                                        )
+                                )
+
+                                val animatedCompassDialAngle by animateFloatAsState(
+                                    targetValue = -currentHeading,
+                                    animationSpec = spring(dampingRatio = 0.82f, stiffness = 120f)
+                                )
+
+                                val animatedNeedleAngle by animateFloatAsState(
+                                    targetValue = needleAngle,
+                                    animationSpec = spring(dampingRatio = 0.76f, stiffness = 160f)
+                                )
+
                                 val emeraldColor = MaterialTheme.colorScheme.primary
                                 val goldColor = MaterialTheme.colorScheme.secondary
+                                val onBackground = MaterialTheme.colorScheme.onBackground
 
                                 Canvas(
                                     modifier = Modifier
-                                        .size(170.dp)
+                                        .size(175.dp)
                                         .testTag("qibla_compass_canvas")
                                 ) {
                                     // Outer ring
                                     drawCircle(
-                                        color = goldColor.copy(alpha = 0.2f),
+                                        color = if (isAligned) goldColor.copy(alpha = 0.4f) else emeraldColor.copy(alpha = 0.15f),
                                         radius = size.width / 2f,
-                                        style = Stroke(width = 8.dp.toPx())
+                                        style = Stroke(width = 6.dp.toPx())
                                     )
                                     drawCircle(
-                                        color = emeraldColor,
+                                        color = if (isAligned) goldColor else emeraldColor.copy(alpha = 0.5f),
                                         radius = size.width / 2f - 4.dp.toPx(),
-                                        style = Stroke(width = 2.dp.toPx())
+                                        style = Stroke(width = 1.dp.toPx())
                                     )
 
-                                    // Draw static circular tick marks
-                                    for (i in 0 until 360 step 30) {
-                                        val angleRad = Math.toRadians(i.toDouble())
-                                        val cosVal = Math.cos(angleRad).toFloat()
-                                        val sinVal = Math.sin(angleRad).toFloat()
-                                        val startPx = size.width / 2f + (size.width / 2f - 14.dp.toPx()) * cosVal
-                                        val startPy = size.height / 2f + (size.height / 2f - 14.dp.toPx()) * sinVal
-                                        val endPx = size.width / 2f + (size.width / 2f - 4.dp.toPx()) * cosVal
-                                        val endPy = size.height / 2f + (size.height / 2f - 4.dp.toPx()) * sinVal
-                                        
+                                    // Rotate the tick marks and compass letters according to our heading orientation
+                                    val dialCenter = size.width / 2f
+                                    val dialRadius = size.width / 2f
+
+                                    // Render Dial Tick marks + letters (N, E, S, W) rotated
+                                    for (degree in 0 until 360 step 15) {
+                                        val totalDegree = (degree.toFloat() + animatedCompassDialAngle + 360f) % 360f
+                                        val isMajor = degree % 90 == 0
+                                        val alpha = if (isMajor) 0.85f else 0.35f
+                                        val strokeWidth = if (isMajor) 2.dp.toPx() else 1.dp.toPx()
+                                        val tickLength = if (isMajor) 12.dp.toPx() else 7.dp.toPx()
+
+                                        val rad = Math.toRadians(totalDegree.toDouble() - 90.0)
+                                        val cosVal = Math.cos(rad).toFloat()
+                                        val sinVal = Math.sin(rad).toFloat()
+
+                                        val startX = dialCenter + (dialRadius - tickLength - 3.dp.toPx()) * cosVal
+                                        val startY = dialCenter + (dialRadius - tickLength - 3.dp.toPx()) * sinVal
+                                        val endX = dialCenter + (dialRadius - 3.dp.toPx()) * cosVal
+                                        val endY = dialCenter + (dialRadius - 3.dp.toPx()) * sinVal
+
+                                        val color = if (degree == 0) goldColor else if (isMajor) emeraldColor else onBackground
+
                                         drawLine(
-                                            color = goldColor.copy(alpha = 0.5f),
-                                            start = Offset(startPx, startPy),
-                                            end = Offset(endPx, endPy),
-                                            strokeWidth = 1.5.dp.toPx()
+                                            color = color.copy(alpha = alpha),
+                                            start = Offset(startX, startY),
+                                            end = Offset(endX, endY),
+                                            strokeWidth = strokeWidth
                                         )
                                     }
 
-                                    // Rotating indicator needle based on current angle selection
-                                    val rotRad = Math.toRadians(animatedAngle.toDouble() - 90.0) // 0 north adjustment
-                                    val needleCos = Math.cos(rotRad).toFloat()
-                                    val needleSin = Math.sin(rotRad).toFloat()
+                                    // Pointer needle to Kaaba (pointing at animatedNeedleAngle relative to screen's top)
+                                    val needleRad = Math.toRadians(animatedNeedleAngle.toDouble() - 90.0)
+                                    val nCos = Math.sin(Math.toRadians(animatedNeedleAngle.toDouble())).toFloat()
+                                    val nSin = -Math.cos(Math.toRadians(animatedNeedleAngle.toDouble())).toFloat()
 
-                                    val centerX = size.width / 2f
-                                    val centerY = size.height / 2f
-                                    val needleLen = size.width / 2f - 20.dp.toPx()
-                                    val targetX = centerX + needleLen * needleCos
-                                    val targetY = centerY + needleLen * needleSin
+                                    val needleLen = (dialRadius - 28.dp.toPx()) * needlePulseScale
+                                    val targetNeedleX = dialCenter + needleLen * nCos
+                                    val targetNeedleY = dialCenter + needleLen * nSin
 
-                                    // Gold pointer tip
+                                    // Left & right wings of the needle block to present a premium geometric compass head
+                                    val wingRadLeft = Math.toRadians(animatedNeedleAngle.toDouble() - 90.0 - 15.0)
+                                    val wingRadRight = Math.toRadians(animatedNeedleAngle.toDouble() - 90.0 + 15.0)
+                                    val wingLen = 32.dp.toPx()
+
+                                    val leftWingX = dialCenter + wingLen * Math.cos(wingRadLeft).toFloat()
+                                    val leftWingY = dialCenter + wingLen * Math.sin(wingRadLeft).toFloat()
+
+                                    val rightWingX = dialCenter + wingLen * Math.cos(wingRadRight).toFloat()
+                                    val rightWingY = dialCenter + wingLen * Math.sin(wingRadRight).toFloat()
+
+                                    val path = androidx.compose.ui.graphics.Path().apply {
+                                        moveTo(targetNeedleX, targetNeedleY)
+                                        lineTo(leftWingX, leftWingY)
+                                        lineTo(dialCenter, dialCenter)
+                                        close()
+                                    }
+                                    val rightPath = androidx.compose.ui.graphics.Path().apply {
+                                        moveTo(targetNeedleX, targetNeedleY)
+                                        lineTo(rightWingX, rightWingY)
+                                        lineTo(dialCenter, dialCenter)
+                                        close()
+                                    }
+
+                                    // Draw Mecca pointer (glowing gold when aligned, or solid emerald/gold)
+                                    drawPath(
+                                        path = path,
+                                        color = if (isAligned) goldColor else emeraldColor.copy(alpha = 0.8f)
+                                    )
+                                    drawPath(
+                                        path = rightPath,
+                                        color = if (isAligned) goldColor.copy(alpha = 0.7f) else emeraldColor.copy(alpha = 0.6f)
+                                    )
+
+                                    // Opposite balance tail indicator
+                                    val tailCos = -nCos
+                                    val tailSin = -nSin
+                                    val tailLen = 25.dp.toPx()
                                     drawLine(
-                                        color = goldColor,
-                                        start = Offset(centerX, centerY),
-                                        end = Offset(targetX, targetY),
-                                        strokeWidth = 4.dp.toPx(),
+                                        color = if (isAligned) goldColor.copy(alpha = 0.6f) else onBackground.copy(alpha = 0.25f),
+                                        start = Offset(dialCenter, dialCenter),
+                                        end = Offset(dialCenter + tailLen * tailCos, dialCenter + tailLen * tailSin),
+                                        strokeWidth = 3.dp.toPx(),
                                         cap = StrokeCap.Round
                                     )
-                                    
-                                    // Small emerald balance bottom tip
-                                    drawLine(
-                                        color = emeraldColor.copy(alpha = 0.4f),
-                                        start = Offset(centerX, centerY),
-                                        end = Offset(centerX - 30.dp.toPx() * needleCos, centerY - 30.dp.toPx() * needleSin),
-                                        strokeWidth = 3.dp.toPx()
-                                    )
 
-                                    // Center pin point
+                                    // Center gold rivet core
                                     drawCircle(
-                                        color = goldColor,
+                                        color = if (isAligned) goldColor else emeraldColor,
                                         radius = 8.dp.toPx()
                                     )
                                     drawCircle(
@@ -2994,26 +3177,68 @@ fun PrayerToolsScreen(viewModel: IslamQuranViewModel) {
                                         radius = 3.dp.toPx()
                                     )
                                 }
+
+                                // Centered static indicator icon or label displaying "N" at the absolute top of the dial relative to rotation
+                                Box(
+                                    modifier = Modifier
+                                        .size(175.dp)
+                                        .padding(12.dp)
+                                ) {
+                                    // Static top alignment marker (always points straight up - the Z alignment notch of raw hardware)
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                            .background(if (isAligned) goldColor else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.35f), CircleShape)
+                                            .align(Alignment.TopCenter)
+                                    )
+                                }
                             }
 
                             Spacer(modifier = Modifier.height(10.dp))
                             
+                            val statusGuide = if (isAligned) {
+                                "Hazarat, you are facing Mecca. Tap below to calibrate or check settings."
+                            } else {
+                                "Drag the compass dial or rotate your phone until the needle matches the alignment notch at the top."
+                            }
+
                             Text(
-                                text = "Hold phone flat. Align the golden direction needle directly with the top center alignment of your screen.",
+                                text = statusGuide,
                                 fontSize = 11.sp,
                                 textAlign = TextAlign.Center,
-                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                                modifier = Modifier.fillMaxWidth()
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.61f),
+                                modifier = Modifier.fillMaxWidth(),
+                                lineHeight = 15.sp
                             )
 
-                            Spacer(modifier = Modifier.height(10.dp))
+                            Spacer(modifier = Modifier.height(12.dp))
                             
-                            Button(
-                                onClick = { viewModel.rotateQiblaSimulated() },
+                            Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                Text("CALIBRATE SENSORS", fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
+                                Button(
+                                    onClick = { 
+                                        manualHeadingOffset = 0f
+                                        viewModel.rotateQiblaSimulated()
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Text("RESET DRAG", fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                }
+
+                                OutlinedButton(
+                                    onClick = {
+                                        viewModel.requestAndRefreshLocation(context)
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Text("REFRESH GPS", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
+                                }
                             }
                         }
 

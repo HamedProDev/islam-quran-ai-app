@@ -498,8 +498,18 @@ class IslamQuranViewModel(application: Application) : AndroidViewModel(applicati
                 isQuranAiLoading = false
             } else {
                 try {
+                    val toneInstruction = when (activeAiTone) {
+                        "Contemporary Daily Guide" -> "Explain as a contemporary life guide with modern, practical, and relatable advice for daily challenges."
+                        "Spiritual Esoteric Sufi" -> "Focus heavily on the spiritual, inward, and mystical dimensions (Tazkiyah, purification of soul, mindfulness, and inner peace)."
+                        else -> "Act as an elite traditional Islamic scholar providing classical jurisprudence, historical contexts, and traditional references."
+                    }
+                    val styleInstruction = when (activeAiResponseStyle) {
+                        "Concise Summary" -> "Be extremely concise, brief, and action-oriented. Keep the entire response under 3 short bullet points."
+                        "Verses Only Direct Quote" -> "Only cite direct verses with minimal transition texts, focusing purely on direct scriptures."
+                        else -> "Provide a detailed academic and scholarly breakdown with deep historical analysis and multiple classical perspectives."
+                    }
                     val systemInstructionStr = "You are an elite Islamic scholar and Quranic contextual explanations assistant. " +
-                            "Explain the contextual background, historical significance, and theological meaning of the surahs, verses, or themes related to the query: '$trimmedQuery'. " +
+                            "$toneInstruction $styleInstruction " +
                             "Avoid emojis completely per user's minimalist UI preferences. " +
                             "Answer with scholarly precision and clear organization using titles, short paragraphs, or bullets. " +
                             "Cite surah names and verse numbers in brackets, for example: [Surah Al-Fatiha 1:1]."
@@ -525,7 +535,7 @@ class IslamQuranViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     private fun getSimulatedQuranExplanation(query: String): String {
-        return when {
+        val baseText = when {
             query.contains("patience", ignoreCase = true) || query.contains("sabr", ignoreCase = true) -> {
                 "Patience (Sabr) in the Quran is a fundamental virtue linked to success and divine companionship. Allah states, 'Indeed, Allah is with the patient' [Surah Al-Baqarah 2:153]. It is divided into patience in worship, patience in avoiding temptation, and patience under trials. The context of these verses often relates to keeping focus during difficulties."
             }
@@ -542,6 +552,7 @@ class IslamQuranViewModel(application: Application) : AndroidViewModel(applicati
                 "The Quranic theme matching your search focuses on spiritual refinement and aligning daily actions with divine commands. The context encourages searching for the spiritual connection between these verses and daily devotion. Keep reciting and reflecting on the verses of the Quran, seeking knowledge from classical and authentic scholarly sources, such as Tafsir Ibn Kathir."
             }
         }
+        return adaptSimulatedResponse(baseText)
     }
 
     fun selectSurahAndVerse(surah: Surah, verseIndex: Int) {
@@ -1281,6 +1292,22 @@ class IslamQuranViewModel(application: Application) : AndroidViewModel(applicati
     var isAiModerationEnabled by mutableStateOf(true)
     var selectedVerifiedSourcesOnly by mutableStateOf(true)
     var deepVerificationSpeedLimit by mutableStateOf(3) // 3 seconds timeout
+    
+    // AI Companion Tone configurations
+    var activeAiTone by mutableStateOf("Traditional Elite Scholar")
+    val aiTonesList = listOf(
+        "Traditional Elite Scholar",
+        "Contemporary Daily Guide",
+        "Spiritual Esoteric Sufi"
+    )
+
+    // AI Companion Response Style configurations
+    var activeAiResponseStyle by mutableStateOf("Detailed Academic")
+    val aiResponseStylesList = listOf(
+        "Detailed Academic",
+        "Concise Summary",
+        "Verses Only Direct Quote"
+    )
 
     fun selectAdminActivity(action: String, logUser: String = "ADMIN") {
         activityLogs.value = listOf(
