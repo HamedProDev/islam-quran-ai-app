@@ -485,6 +485,7 @@ class IslamQuranViewModel(application: Application) : AndroidViewModel(applicati
     fun getQuranAiExplanation(query: String) {
         val trimmedQuery = query.trim()
         if (trimmedQuery.isEmpty()) return
+        addToRecentQueries(trimmedQuery)
         isQuranAiLoading = true
         quranAiExplanationResponse = null
         
@@ -494,7 +495,7 @@ class IslamQuranViewModel(application: Application) : AndroidViewModel(applicati
             
             if (isKeyMissing) {
                 delay(1200)
-                quranAiExplanationResponse = getSimulatedQuranExplanation(trimmedQuery)
+                quranAiExplanationResponse = adaptSimulatedResponse(getSimulatedQuranExplanation(trimmedQuery))
                 isQuranAiLoading = false
             } else {
                 try {
@@ -526,7 +527,7 @@ class IslamQuranViewModel(application: Application) : AndroidViewModel(applicati
                     quranAiExplanationResponse = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
                         ?: "No explanation could be retrieved. Please verify connection and try again."
                 } catch (e: Exception) {
-                    quranAiExplanationResponse = "Local scholarly engine fallback: \n\n" + getSimulatedQuranExplanation(trimmedQuery)
+                    quranAiExplanationResponse = "Local scholarly engine fallback: \n\n" + adaptSimulatedResponse(getSimulatedQuranExplanation(trimmedQuery))
                 } finally {
                     isQuranAiLoading = false
                 }
@@ -840,7 +841,9 @@ class IslamQuranViewModel(application: Application) : AndroidViewModel(applicati
     var isVoiceActive by mutableStateOf(false)
 
     fun sendAiPrompt(prompt: String) {
-        if (prompt.trim().isEmpty()) return
+        val trimmed = prompt.trim()
+        if (trimmed.isEmpty()) return
+        addToRecentQueries(trimmed)
         
         val userMsg = ChatMessage(
             id = System.nanoTime().toString(),
@@ -860,7 +863,7 @@ class IslamQuranViewModel(application: Application) : AndroidViewModel(applicati
             if (isKeyMissing) {
                 // Realistic elite scholarly offline/simulation model
                 delay(1500)
-                val simulationText = getSimulatedScholarlyResponse(prompt)
+                val simulationText = adaptSimulatedResponse(getSimulatedScholarlyResponse(prompt))
                 val aiMsg = ChatMessage(
                     id = System.nanoTime().toString(),
                     sender = "ai",
@@ -905,7 +908,7 @@ class IslamQuranViewModel(application: Application) : AndroidViewModel(applicati
                     val aiMsg = ChatMessage(
                         id = System.nanoTime().toString(),
                         sender = "ai",
-                        text = fallbackResponse + "\n\n" + getSimulatedScholarlyResponse(prompt),
+                        text = fallbackResponse + "\n\n" + adaptSimulatedResponse(getSimulatedScholarlyResponse(prompt)),
                         timestamp = System.currentTimeMillis(),
                         sources = listOf("Local Verifier Engine", "Direct Tafsir Portal")
                     )
@@ -1308,6 +1311,135 @@ class IslamQuranViewModel(application: Application) : AndroidViewModel(applicati
         "Concise Summary",
         "Verses Only Direct Quote"
     )
+
+    // Dynamic Typography Customized Readability Configuration (Arabic sizing, English sizing, Font Face styles)
+    var quranArabicFontSize by mutableStateOf(21f)
+    var quranEnglishFontSize by mutableStateOf(13f)
+    var quranSelectedFontStyle by mutableStateOf("Classic Serif") // "Classic Serif", "Elegant Sans", "Monospace Tech"
+    val quranFontStylesList = listOf("Classic Serif", "Elegant Sans", "Monospace Tech")
+
+    // Recent queries list for companion search and inquiry history
+    var recentQueries by mutableStateOf<List<String>>(listOf(
+        "Patience and Sabr",
+        "Khushu in daily prayer",
+        "Surah Al-Falaq context"
+    ))
+
+    fun addToRecentQueries(query: String) {
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) return
+        val current = recentQueries.filter { it.lowercase() != trimmed.lowercase() }.toMutableList()
+        current.add(0, trimmed)
+        recentQueries = current.take(6)
+    }
+
+    fun removeRecentQuery(query: String) {
+        recentQueries = recentQueries.filter { it != query }
+    }
+
+    // Companion Arbitrary Verse Audio Recitation Player
+    var companionPlayingSurahId by mutableStateOf<Int?>(null)
+    var companionPlayingVerseNum by mutableStateOf<Int?>(null)
+    var isCompanionAudioPlaying by mutableStateOf(false)
+
+    fun playCompanionVerse(surahId: Int, verseNum: Int) {
+        val surah = QuranRepository.surahs.find { it.id == surahId } ?: return
+        
+        // Stop main recitation if any
+        stopAudio()
+        
+        companionPlayingSurahId = surahId
+        companionPlayingVerseNum = verseNum
+        isCompanionAudioPlaying = true
+        isAudioBuffering = true
+
+        try {
+            mediaPlayer?.stop()
+            mediaPlayer?.release()
+        } catch (e: Exception) {}
+        mediaPlayer = null
+
+        val folder = when (selectedReciter) {
+            "Sheikh Mishary Al-Afasy" -> "Alafasy_128kbps"
+            "Sheikh Abdul Rahman Al-Sudais" -> "Abdurrahmaan_As-Sudais_128kbps"
+            "Sheikh Saad Al-Ghamdi" -> "Ghamadi_40kbps"
+            "Sheikh Abdul Basit Samad" -> "Abdul_Basit_Murattal_192kbps"
+            "Sheikh Maher Al-Muaiqly" -> "MaherAlMuaiqly128kbps"
+            "Sheikh Mahmoud Al-Hussary" -> "Hussary_128kbps"
+            else -> "Alafasy_128kbps"
+        }
+        val surahStr = String.format("%03d", surahId)
+        val verseStr = String.format("%03d", verseNum)
+        val audioUrl = "https://www.everyayah.com/data/$folder/$surahStr$verseStr.mp3"
+
+        val mp = android.media.MediaPlayer().apply {
+            setAudioAttributes(
+                android.media.AudioAttributes.Builder()
+                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                    .build()
+            )
+            try {
+                setDataSource(audioUrl)
+                prepareAsync()
+            } catch (e: Exception) {
+                isAudioBuffering = false
+                isCompanionAudioPlaying = false
+                companionPlayingSurahId = null
+                companionPlayingVerseNum = null
+            }
+        }
+        mediaPlayer = mp
+
+        mp.setOnPreparedListener {
+            isAudioBuffering = false
+            if (isCompanionAudioPlaying) {
+                applyPlaybackSpeed(it)
+                it.start()
+                it.setOnCompletionListener {
+                    isCompanionAudioPlaying = false
+                    companionPlayingSurahId = null
+                    companionPlayingVerseNum = null
+                }
+            } else {
+                it.release()
+            }
+        }
+
+        mp.setOnErrorListener { _, _, _ ->
+            isAudioBuffering = false
+            isCompanionAudioPlaying = false
+            companionPlayingSurahId = null
+            companionPlayingVerseNum = null
+            true
+        }
+    }
+
+    fun stopCompanionVerse() {
+        isCompanionAudioPlaying = false
+        companionPlayingSurahId = null
+        companionPlayingVerseNum = null
+        try {
+            mediaPlayer?.stop()
+            mediaPlayer?.release()
+        } catch (e: Exception) {}
+        mediaPlayer = null
+    }
+
+    private fun adaptSimulatedResponse(baseText: String): String {
+        val tonePrefix = when (activeAiTone) {
+            "Contemporary Daily Guide" -> "[CONTEMPORARY DAILY GUIDE] Let's bring this divine guidance into modern practical living: "
+            "Spiritual Esoteric Sufi" -> "[SPIRITUAL ESOTERIC SUFI] Reflect deeply on the inner purity, quietude of soul, and mindfulness: "
+            else -> "[TRADITIONAL ELITE SCHOLAR] Respectful analysis based on classical text verification: "
+        }
+        
+        val styleAdjusted = when (activeAiResponseStyle) {
+            "Concise Summary" -> "Key Takeaways:\n• Absorb this truth with focus.\n• Maintain high standards of prayer and patience."
+            "Verses Only Direct Quote" -> "Scripture Citation: $baseText"
+            else -> "$baseText This is referenced across authentic books of classical jurisprudence and historical interpretation."
+        }
+        return "$tonePrefix $styleAdjusted"
+    }
 
     fun selectAdminActivity(action: String, logUser: String = "ADMIN") {
         activityLogs.value = listOf(

@@ -858,6 +858,13 @@ fun QuranReaderScreen(viewModel: IslamQuranViewModel) {
     var activeFilter by remember { mutableStateOf("") }
     var searchSubTab by remember { mutableStateOf("All") } // All, Chapters, Verses, AI Insights
     var isAudioPanelExpanded by remember { mutableStateOf(false) }
+    var showReadabilitySettings by remember { mutableStateOf(false) }
+
+    val quranFontFamily = when (viewModel.quranSelectedFontStyle) {
+        "Elegant Sans" -> FontFamily.SansSerif
+        "Monospace Tech" -> FontFamily.Monospace
+        else -> FontFamily.Serif
+    }
     
     val filteredSurahs = remember(activeFilter) {
         if (activeFilter.isEmpty()) QuranRepository.surahs
@@ -1265,6 +1272,132 @@ fun QuranReaderScreen(viewModel: IslamQuranViewModel) {
                                         color = MaterialTheme.colorScheme.onBackground
                                     )
                                 }
+
+                                // Readability settings trigger
+                                Row(
+                                    modifier = Modifier.clickable { showReadabilitySettings = !showReadabilitySettings },
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.FormatSize,
+                                        contentDescription = "Readability Typography",
+                                        modifier = Modifier.size(16.dp),
+                                        tint = if (showReadabilitySettings) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
+                                    )
+                                    Text(
+                                        text = "Size & Style",
+                                        fontSize = 12.sp,
+                                        color = if (showReadabilitySettings) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onBackground
+                                    )
+                                }
+                            }
+                        }
+
+                        AnimatedVisibility(
+                            visible = showReadabilitySettings,
+                            enter = fadeIn() + expandVertically(),
+                            exit = fadeOut() + shrinkVertically()
+                        ) {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 20.dp, vertical = 6.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
+                                ),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
+                            ) {
+                                Column(modifier = Modifier.padding(14.dp)) {
+                                    Text(
+                                        text = "READABILITY TYPOGRAPHY SETTINGS",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.secondary,
+                                        letterSpacing = 0.5.sp
+                                    )
+                                    
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    
+                                    // Arabic Font Size Slider
+                                    Column {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(text = "Arabic Font Size", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                            Text(text = "${viewModel.quranArabicFontSize.toInt()} sp", fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Black)
+                                        }
+                                        Slider(
+                                            value = viewModel.quranArabicFontSize,
+                                            onValueChange = { viewModel.quranArabicFontSize = it },
+                                            valueRange = 16f..36f,
+                                            colors = SliderDefaults.colors(
+                                                thumbColor = MaterialTheme.colorScheme.secondary,
+                                                activeTrackColor = MaterialTheme.colorScheme.primary
+                                            )
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    
+                                    // English Font Size Slider
+                                    Column {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(text = "Translation Font Size", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                            Text(text = "${viewModel.quranEnglishFontSize.toInt()} sp", fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Black)
+                                        }
+                                        Slider(
+                                            value = viewModel.quranEnglishFontSize,
+                                            onValueChange = { viewModel.quranEnglishFontSize = it },
+                                            valueRange = 10f..24f,
+                                            colors = SliderDefaults.colors(
+                                                thumbColor = MaterialTheme.colorScheme.secondary,
+                                                activeTrackColor = MaterialTheme.colorScheme.primary
+                                            )
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    
+                                    // Font Style Selector Row
+                                    Text(text = "Script Style", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        viewModel.quranFontStylesList.forEach { style ->
+                                            val isSelected = viewModel.quranSelectedFontStyle == style
+                                            Box(
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .background(
+                                                        if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.05f),
+                                                        RoundedCornerShape(8.dp)
+                                                    )
+                                                    .border(1.dp, if (isSelected) MaterialTheme.colorScheme.secondary else Color.Transparent, RoundedCornerShape(8.dp))
+                                                    .clickable { viewModel.quranSelectedFontStyle = style }
+                                                    .padding(vertical = 8.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    text = style,
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = if (isSelected) Color.White else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                                                    textAlign = TextAlign.Center
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
 
@@ -1436,13 +1569,13 @@ fun QuranReaderScreen(viewModel: IslamQuranViewModel) {
                             // Arabic typography styled professionally
                             Text(
                                 text = verse.arabic,
-                                fontSize = 21.sp,
-                                fontFamily = FontFamily.Serif,
+                                fontSize = viewModel.quranArabicFontSize.sp,
+                                fontFamily = quranFontFamily,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary,
                                 textAlign = TextAlign.Right,
                                 modifier = Modifier.fillMaxWidth(),
-                                lineHeight = 34.sp
+                                lineHeight = (viewModel.quranArabicFontSize * 1.6f).sp
                             )
 
                             if (viewModel.showTranslation) {
@@ -1484,9 +1617,9 @@ fun QuranReaderScreen(viewModel: IslamQuranViewModel) {
                                         
                                         Text(
                                             text = displayTranslation,
-                                            fontSize = 13.sp,
+                                            fontSize = viewModel.quranEnglishFontSize.sp,
                                             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.82f),
-                                            lineHeight = 18.sp,
+                                            lineHeight = (viewModel.quranEnglishFontSize * 1.4f).sp,
                                             modifier = Modifier.fillMaxWidth()
                                         )
                                     }
@@ -2145,6 +2278,9 @@ fun AiAssistantScreen(viewModel: IslamQuranViewModel) {
             }
         }
 
+        // Pinned high-fidelity verse recitation widget
+        CompanionAudioPlayerWidget(viewModel = viewModel)
+
         // CHAT TIMELINE WITH FADE IN TRANSITION FOR MESSAGES
         Box(
             modifier = Modifier
@@ -2336,6 +2472,65 @@ fun AiAssistantScreen(viewModel: IslamQuranViewModel) {
             "Story of Prophet Yusuf"
         )
         
+        val recentQueriesList = viewModel.recentQueries
+        
+        AnimatedVisibility(
+            visible = chatState.size <= 1 && !viewModel.isAiLoading && recentQueriesList.isNotEmpty(),
+            enter = fadeIn(animationSpec = tween(durationMillis = 500)) + expandVertically(animationSpec = tween(durationMillis = 500)),
+            exit = fadeOut(animationSpec = tween(durationMillis = 300)) + shrinkVertically(animationSpec = tween(durationMillis = 300))
+        ) {
+            Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                Text(
+                    text = "RECENT SEARCHES",
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+                    letterSpacing = 0.8.sp
+                )
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 6.dp)
+                ) {
+                    items(recentQueriesList) { query ->
+                        Surface(
+                            modifier = Modifier
+                                .animateContentSize(),
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(start = 12.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = query,
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onBackground,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.clickable { viewModel.sendAiPrompt(query) }
+                                )
+                                IconButton(
+                                    onClick = { viewModel.removeRecentQuery(query) },
+                                    modifier = Modifier.size(18.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Remove search",
+                                        tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.49f),
+                                        modifier = Modifier.size(10.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         AnimatedVisibility(
             visible = chatState.size <= 1 && !viewModel.isAiLoading,
             enter = fadeIn(animationSpec = tween(durationMillis = 500)) + expandVertically(animationSpec = tween(durationMillis = 500)),
@@ -3945,6 +4140,103 @@ fun MoreSettingsScreen(
             }
         }
 
+        // QURAN TEXT READABILITY CONFIGURATION PANEL
+        Spacer(modifier = Modifier.height(20.dp))
+        Text(
+            text = "Quran typography layout".uppercase(),
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
+            modifier = Modifier.padding(horizontal = 20.dp),
+            letterSpacing = 1.sp
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 4.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
+        ) {
+            Column(modifier = Modifier.padding(14.dp)) {
+                // Arabic Layout
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "Arabic Quran Size", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "${viewModel.quranArabicFontSize.toInt()} sp", fontSize = 13.sp, color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Black)
+                }
+                Slider(
+                    value = viewModel.quranArabicFontSize,
+                    onValueChange = { viewModel.quranArabicFontSize = it },
+                    valueRange = 16f..36f,
+                    colors = SliderDefaults.colors(
+                        thumbColor = MaterialTheme.colorScheme.secondary,
+                        activeTrackColor = MaterialTheme.colorScheme.primary
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Translation Layout
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "Translation Text Size", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "${viewModel.quranEnglishFontSize.toInt()} sp", fontSize = 13.sp, color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Black)
+                }
+                Slider(
+                    value = viewModel.quranEnglishFontSize,
+                    onValueChange = { viewModel.quranEnglishFontSize = it },
+                    valueRange = 10f..24f,
+                    colors = SliderDefaults.colors(
+                        thumbColor = MaterialTheme.colorScheme.secondary,
+                        activeTrackColor = MaterialTheme.colorScheme.primary
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Style choices
+                Text(text = "Preferred Script Style", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    viewModel.quranFontStylesList.forEach { style ->
+                        val isSelected = viewModel.quranSelectedFontStyle == style
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .background(
+                                    if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.05f),
+                                    RoundedCornerShape(8.dp)
+                                )
+                                .border(1.dp, if (isSelected) MaterialTheme.colorScheme.secondary else Color.Transparent, RoundedCornerShape(8.dp))
+                                .clickable { viewModel.quranSelectedFontStyle = style }
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = style,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isSelected) Color.White else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         // GATEWAY PORTAL ADMIN CONTROLLER BAR
         Spacer(modifier = Modifier.height(24.dp))
         Text(
@@ -4487,6 +4779,92 @@ fun AdminDashboardScreen(
                                         color = MaterialTheme.colorScheme.secondary
                                     )
                                 }
+
+                                Spacer(modifier = Modifier.height(14.dp))
+                                Divider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                // AI COMPANION TONE CONFIGURATION
+                                Text(
+                                    text = "Quran Companion AI Tone Style",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.secondary
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    viewModel.aiTonesList.forEach { tone ->
+                                        val isSelected = viewModel.activeAiTone == tone
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .background(
+                                                    if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.05f),
+                                                    RoundedCornerShape(8.dp)
+                                                )
+                                                .border(1.dp, if (isSelected) MaterialTheme.colorScheme.secondary else Color.Transparent, RoundedCornerShape(8.dp))
+                                                .clickable { 
+                                                    viewModel.activeAiTone = tone 
+                                                    viewModel.selectAdminActivity("AI Companion tone set to $tone")
+                                                }
+                                                .padding(vertical = 8.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = tone,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (isSelected) Color.White else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                                                textAlign = TextAlign.Center
+                                            )
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                // AI COMPANION RESPONSE LENGTH / DETAIL STYLE
+                                Text(
+                                    text = "Quran Companion AI Response Format",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.secondary
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    viewModel.aiResponseStylesList.forEach { style ->
+                                        val isSelected = viewModel.activeAiResponseStyle == style
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .background(
+                                                    if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.05f),
+                                                    RoundedCornerShape(8.dp)
+                                                )
+                                                .border(1.dp, if (isSelected) MaterialTheme.colorScheme.secondary else Color.Transparent, RoundedCornerShape(8.dp))
+                                                .clickable { 
+                                                    viewModel.activeAiResponseStyle = style
+                                                    viewModel.selectAdminActivity("AI Companion response format set to $style")
+                                                }
+                                                .padding(vertical = 8.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = style,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (isSelected) Color.White else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                                                textAlign = TextAlign.Center
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -4530,6 +4908,197 @@ fun AdminMetricCard(
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.secondary
             )
+        }
+    }
+}
+
+@Composable
+fun CompanionAudioPlayerWidget(viewModel: IslamQuranViewModel) {
+    var expandedSurah by remember { mutableStateOf(false) }
+    var expandedVerse by remember { mutableStateOf(false) }
+    
+    val selectedSurahForCompanion = remember { mutableStateOf(QuranRepository.surahs[0]) }
+    val selectedVerseNumForCompanion = remember { mutableStateOf(1) }
+
+    val isPlaying = viewModel.isCompanionAudioPlaying
+    val currentSurah = viewModel.companionPlayingSurahId?.let { id -> QuranRepository.surahs.find { it.id == id } }
+    val currentVerseNum = viewModel.companionPlayingVerseNum
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 6.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.04f)
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.MusicNote,
+                        contentDescription = "Companion Audio Player",
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = "COMPANION VERSE RECITATIONS",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.secondary,
+                        letterSpacing = 0.5.sp
+                    )
+                }
+                
+                if (currentSurah != null && currentVerseNum != null) {
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f)
+                    ) {
+                        Text(
+                            text = "PLAYING ${currentSurah.name.uppercase()} • AYA $currentVerseNum",
+                            color = MaterialTheme.colorScheme.secondary,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Black,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(modifier = Modifier.weight(1f)) {
+                    Button(
+                        onClick = { expandedSurah = !expandedSurah },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.05f),
+                            contentColor = MaterialTheme.colorScheme.onBackground
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = selectedSurahForCompanion.value.name,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Icon(Icons.Default.ArrowDropDown, null, modifier = Modifier.size(14.dp))
+                        }
+                    }
+                    DropdownMenu(
+                        expanded = expandedSurah,
+                        onDismissRequest = { expandedSurah = false }
+                    ) {
+                        QuranRepository.surahs.forEach { s ->
+                            DropdownMenuItem(
+                                text = { Text(s.name, fontSize = 12.sp) },
+                                onClick = {
+                                    selectedSurahForCompanion.value = s
+                                    selectedVerseNumForCompanion.value = 1
+                                    expandedSurah = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                Box(modifier = Modifier.weight(0.7f)) {
+                    Button(
+                        onClick = { expandedVerse = !expandedVerse },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.05f),
+                            contentColor = MaterialTheme.colorScheme.onBackground
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Verse ${selectedVerseNumForCompanion.value}",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Icon(Icons.Default.ArrowDropDown, null, modifier = Modifier.size(14.dp))
+                        }
+                    }
+                    DropdownMenu(
+                        expanded = expandedVerse,
+                        onDismissRequest = { expandedVerse = false }
+                    ) {
+                        selectedSurahForCompanion.value.verses.forEach { v ->
+                            DropdownMenuItem(
+                                text = { Text("Verse ${v.number}", fontSize = 12.sp) },
+                                onClick = {
+                                    selectedVerseNumForCompanion.value = v.number
+                                    expandedVerse = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                IconButton(
+                    onClick = {
+                        val activeSelectorSurah = selectedSurahForCompanion.value.id
+                        val activeSelectorVerse = selectedVerseNumForCompanion.value
+                        val activePlayingSurah = viewModel.companionPlayingSurahId
+                        val activePlayingVerse = viewModel.companionPlayingVerseNum
+                        if (isPlaying && activePlayingSurah == activeSelectorSurah && activePlayingVerse == activeSelectorVerse) {
+                            viewModel.stopCompanionVerse()
+                        } else {
+                            viewModel.playCompanionVerse(activeSelectorSurah, activeSelectorVerse)
+                        }
+                    },
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(MaterialTheme.colorScheme.primary, CircleShape)
+                ) {
+                    val isCurrentPlayingThisSelection = isPlaying && 
+                        viewModel.companionPlayingSurahId == selectedSurahForCompanion.value.id && 
+                        viewModel.companionPlayingVerseNum == selectedVerseNumForCompanion.value
+                    Icon(
+                        imageVector = if (isCurrentPlayingThisSelection) Icons.Default.Square else Icons.Default.PlayArrow,
+                        contentDescription = "Recite Verse",
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+            
+            if (viewModel.isAudioBuffering && isPlaying) {
+                Spacer(modifier = Modifier.height(6.dp))
+                LinearProgressIndicator(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(2.dp)
+                        .clip(CircleShape),
+                    color = MaterialTheme.colorScheme.secondary,
+                    trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                )
+            }
         }
     }
 }
