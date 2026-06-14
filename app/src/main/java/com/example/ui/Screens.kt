@@ -85,6 +85,9 @@ fun MainHeader(
     title: String,
     onSearchClick: () -> Unit = {}
 ) {
+    val (nextName, nextTime) = viewModel.getNextUpcomingPrayer()
+    val city = viewModel.selectedCity
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -94,14 +97,34 @@ fun MainHeader(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column {
-            Text(
-                text = "Assalamu Alaikum",
-                fontSize = 13.sp,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                fontWeight = FontWeight.Light,
-                letterSpacing = 0.5.sp
-            )
-            Spacer(modifier = Modifier.height(2.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f))
+                ) {
+                    Text(
+                        text = "Next: $nextName at $nextTime".uppercase(),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.secondary,
+                        letterSpacing = 0.5.sp,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    )
+                }
+                
+                Text(
+                    text = if (city.length > 20) city.take(18) + "..." else city,
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.62f),
+                    fontWeight = FontWeight.Medium,
+                    letterSpacing = 0.2.sp
+                )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = title,
                 fontSize = 20.sp,
@@ -859,6 +882,16 @@ fun QuranReaderScreen(viewModel: IslamQuranViewModel) {
     var searchSubTab by remember { mutableStateOf("All") } // All, Chapters, Verses, AI Insights
     var isAudioPanelExpanded by remember { mutableStateOf(false) }
     var showReadabilitySettings by remember { mutableStateOf(false) }
+    var showSurahDropdown by remember { mutableStateOf(false) }
+    var showVerseDropdown by remember { mutableStateOf(false) }
+    val quranListState = rememberLazyListState()
+
+    LaunchedEffect(viewModel.activeVerseIndex, viewModel.selectedSurah.id) {
+        if (viewModel.selectedSurah.verses.isNotEmpty()) {
+            val idx = viewModel.activeVerseIndex.coerceIn(0, viewModel.selectedSurah.verses.size - 1)
+            quranListState.animateScrollToItem(idx)
+        }
+    }
 
     val quranFontFamily = when (viewModel.quranSelectedFontStyle) {
         "Elegant Sans" -> FontFamily.SansSerif
@@ -1198,6 +1231,156 @@ fun QuranReaderScreen(viewModel: IslamQuranViewModel) {
                 } else {
                     // Standard Reading Interface
                     Column(modifier = Modifier.fillMaxSize()) {
+                        // Quick Precision Selector Bar
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            // Surah Selector
+                            Box(modifier = Modifier.weight(1f)) {
+                                Surface(
+                                    onClick = { showSurahDropdown = true },
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.04f),
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column {
+                                            Text(
+                                                text = "CHAPTER",
+                                                fontSize = 8.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.secondary,
+                                                letterSpacing = 0.5.sp
+                                            )
+                                            Text(
+                                                text = viewModel.selectedSurah.name,
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                        Icon(
+                                            imageVector = Icons.Default.ArrowDropDown,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                                
+                                DropdownMenu(
+                                    expanded = showSurahDropdown,
+                                    onDismissRequest = { showSurahDropdown = false },
+                                    modifier = Modifier
+                                        .fillMaxWidth(0.65f)
+                                        .background(MaterialTheme.colorScheme.surface)
+                                        .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
+                                ) {
+                                    QuranRepository.surahs.forEach { surah ->
+                                        DropdownMenuItem(
+                                            text = {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Text(
+                                                        text = surah.name,
+                                                        fontSize = 13.sp,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        color = if (surah.id == viewModel.selectedSurah.id) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurface
+                                                    )
+                                                    Text(
+                                                        text = surah.rasm,
+                                                        fontSize = 13.sp,
+                                                        fontFamily = FontFamily.Serif,
+                                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                                                    )
+                                                }
+                                            },
+                                            onClick = {
+                                                viewModel.selectSurah(surah)
+                                                showSurahDropdown = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Verse Selector
+                            Box(modifier = Modifier.weight(1f)) {
+                                Surface(
+                                    onClick = { showVerseDropdown = true },
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.04f),
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column {
+                                            Text(
+                                                text = "VERSE",
+                                                fontSize = 8.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.secondary,
+                                                letterSpacing = 0.5.sp
+                                            )
+                                            Text(
+                                                text = "Verse ${viewModel.activeVerseIndex + 1}",
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                        Icon(
+                                            imageVector = Icons.Default.ArrowDropDown,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                                
+                                DropdownMenu(
+                                    expanded = showVerseDropdown,
+                                    onDismissRequest = { showVerseDropdown = false },
+                                    modifier = Modifier
+                                        .fillMaxWidth(0.5f)
+                                        .background(MaterialTheme.colorScheme.surface)
+                                        .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
+                                ) {
+                                    viewModel.selectedSurah.verses.forEachIndexed { idx, verse ->
+                                        DropdownMenuItem(
+                                            text = {
+                                                Text(
+                                                    text = "Verse ${verse.number}",
+                                                    fontSize = 13.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = if (idx == viewModel.activeVerseIndex) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurface
+                                                )
+                                            },
+                                            onClick = {
+                                                viewModel.selectSurahAndVerse(viewModel.selectedSurah, idx)
+                                                showVerseDropdown = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
                         // Surah fast horizontal filter picker
                         LazyRow(
                             modifier = Modifier
@@ -1485,6 +1668,7 @@ fun QuranReaderScreen(viewModel: IslamQuranViewModel) {
                         // READ LIST
                         Box(modifier = Modifier.weight(1f)) {
             LazyColumn(
+                state = quranListState,
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(top = 8.dp, bottom = 120.dp, start = 20.dp, end = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -2028,169 +2212,333 @@ fun QuranReaderScreen(viewModel: IslamQuranViewModel) {
     }
 }
 
-    // TAFSIR EXPANDABLE BOTTOM SHEET DRAWER OVERLAY
-        val openTafsir = viewModel.selectedVerseForTafsir
-        AnimatedVisibility(
-            visible = openTafsir != null,
-            enter = fadeIn(),
-            exit = fadeOut()
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.6f))
-                    .clickable { viewModel.selectedVerseForTafsir = null }
-            )
-        }
+    // TAFSIR EXPANDABLE SIDE PANEL OVERLAY
+    val openTafsir = viewModel.selectedVerseForTafsir
+    
+    // Scrim overlay background
+    AnimatedVisibility(
+        visible = openTafsir != null,
+        enter = fadeIn(),
+        exit = fadeOut()
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.5f))
+                .clickable { viewModel.selectedVerseForTafsir = null }
+        )
+    }
 
-        AnimatedVisibility(
-            visible = openTafsir != null,
-            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
-            modifier = Modifier.fillMaxSize()
+    // Slide-out Side Panel
+    AnimatedVisibility(
+        visible = openTafsir != null,
+        enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(),
+        exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut(),
+        modifier = Modifier.fillMaxHeight().fillMaxWidth()
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.CenterEnd
         ) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.BottomCenter
-            ) {
-                if (openTafsir != null) {
-                    Card(
+            if (openTafsir != null) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .widthIn(max = 500.dp)
+                        .fillMaxWidth(0.90f)
+                        .clickable(enabled = false) {},
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+                    shadowElevation = 16.dp
+                ) {
+                    Column(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .fillMaxHeight(0.70f)
-                            .clickable(enabled = false) {},
-                        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surface
-                        ),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
+                            .fillMaxSize()
+                            .statusBarsPadding()
+                            .navigationBarsPadding()
                     ) {
-                        Column(
+                        // Title bar with close action
+                        Row(
                             modifier = Modifier
-                                .fillMaxSize()
-                                .padding(24.dp)
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp, vertical = 16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .width(40.dp)
-                                    .height(4.dp)
-                                    .background(
-                                        MaterialTheme.colorScheme.onBackground.copy(alpha = 0.2f),
-                                        CircleShape
-                                    )
-                                    .align(Alignment.CenterHorizontally)
-                            )
-                            
-                            Spacer(modifier = Modifier.height(20.dp))
-                            
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
+                            Column {
                                 Text(
-                                    text = "Verse ${openTafsir.number} Tafsir Details",
-                                    fontSize = 16.sp,
+                                    text = "AI CONTEXTUAL TAFSIR",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.secondary,
+                                    letterSpacing = 1.5.sp
+                                )
+                                Text(
+                                    text = "Surah ${viewModel.selectedSurah.name}, Verse ${openTafsir.number}",
+                                    fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.primary
                                 )
-                                IconButton(onClick = { viewModel.selectedVerseForTafsir = null }) {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = "Close",
-                                        tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                                    )
-                                }
                             }
-                            
-                            Divider(modifier = Modifier.padding(vertical = 12.dp), color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
-                            
+                            IconButton(
+                                onClick = { viewModel.selectedVerseForTafsir = null },
+                                modifier = Modifier.background(MaterialTheme.colorScheme.primary.copy(alpha = 0.05f), CircleShape)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Close",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+
+                        Divider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
+
+                        // Scrollable exegesis content
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .verticalScroll(rememberScrollState())
+                                // Padding ensures spacing without cramming
+                                .padding(horizontal = 20.dp, vertical = 16.dp)
+                        ) {
+                            // Arabic rendering
+                            Text(
+                                text = openTafsir.arabic,
+                                fontSize = viewModel.quranArabicFontSize.sp,
+                                fontFamily = quranFontFamily,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Right,
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                                lineHeight = (viewModel.quranArabicFontSize * 1.6f).sp
+                            )
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // English translation
                             Column(
                                 modifier = Modifier
-                                    .weight(1f)
-                                    .verticalScroll(rememberScrollState())
+                                    .fillMaxWidth()
+                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.03f), RoundedCornerShape(12.dp))
+                                    .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.05f), RoundedCornerShape(12.dp))
+                                    .padding(14.dp)
                             ) {
                                 Text(
-                                    text = openTafsir.arabic,
-                                    fontSize = 22.sp,
-                                    fontFamily = FontFamily.Serif,
-                                    color = MaterialTheme.colorScheme.primary,
+                                    text = "Translation [${viewModel.selectedTranslationEdition.id.uppercase()}]",
+                                    fontSize = 9.sp,
                                     fontWeight = FontWeight.Bold,
-                                    textAlign = TextAlign.Right,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    lineHeight = 36.sp
+                                    color = MaterialTheme.colorScheme.secondary,
+                                    letterSpacing = 0.5.sp
                                 )
-                                
-                                Spacer(modifier = Modifier.height(20.dp))
-                                
-                                Row(
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = openTafsir.english,
+                                    fontSize = viewModel.quranEnglishFontSize.sp,
+                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.85f),
+                                    lineHeight = (viewModel.quranEnglishFontSize * 1.4f).sp
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(24.dp))
+
+                            // ——— AI-Powered Exegesis Hub ———
+                            Text(
+                                text = "AI EXEGESIS GENERATOR",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.secondary,
+                                letterSpacing = 1.sp
+                            )
+                            
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            if (viewModel.aiTafsirExplanation == null && !viewModel.isAiTafsirLoading) {
+                                // Prompt the user to analyze
+                                Card(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.02f)),
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)),
+                                    shape = RoundedCornerShape(12.dp)
                                 ) {
-                                    Text(
-                                        text = "Translation Toggle",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.secondary,
-                                        letterSpacing = 1.sp
-                                    )
-                                    Switch(
-                                        checked = viewModel.showTranslation,
-                                        onCheckedChange = { viewModel.showTranslation = it },
-                                        colors = SwitchDefaults.colors(
-                                            checkedThumbColor = MaterialTheme.colorScheme.secondary,
-                                            checkedTrackColor = MaterialTheme.colorScheme.primary
+                                    Column(
+                                        modifier = Modifier.padding(16.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text(
+                                            text = "Leverage advanced AI context to unpack classical jurisprudence, historical contexts, and spiritual guidance based on: ${viewModel.activeAiTone}.",
+                                            fontSize = 12.sp,
+                                            textAlign = TextAlign.Center,
+                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                                            lineHeight = 18.sp
                                         )
-                                    )
-                                }
-                                
-                                AnimatedVisibility(visible = viewModel.showTranslation) {
-                                    Column {
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        Card(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            colors = CardDefaults.cardColors(
-                                                containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.03f)
-                                            ),
-                                            shape = RoundedCornerShape(12.dp),
-                                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.05f))
+                                        Spacer(modifier = Modifier.height(14.dp))
+                                        Button(
+                                            onClick = { viewModel.generateAiTafsirForVerse(viewModel.selectedSurah, openTafsir) },
+                                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                                            shape = RoundedCornerShape(10.dp),
+                                            modifier = Modifier.fillMaxWidth()
                                         ) {
-                                            Text(
-                                                text = openTafsir.english,
-                                                fontSize = 13.sp,
-                                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.9f),
-                                                lineHeight = 18.sp,
-                                                modifier = Modifier.padding(14.dp)
-                                            )
+                                            Row(
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.AutoAwesome,
+                                                    contentDescription = null,
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                                Text(
+                                                    text = "Generate AI Exegesis",
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color.White
+                                                )
+                                            }
                                         }
                                     }
                                 }
-                                
-                                Spacer(modifier = Modifier.height(24.dp))
-                                
-                                Text(
-                                    text = "Scholarly Tafsir Analysis",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.secondary,
-                                    letterSpacing = 1.sp
-                                )
-                                
-                                Spacer(modifier = Modifier.height(10.dp))
-                                
-                                Text(
-                                    text = openTafsir.tafsir,
-                                    fontSize = 14.sp,
-                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.85f),
-                                    lineHeight = 20.sp
-                                )
+                            } else if (viewModel.isAiTafsirLoading) {
+                                // Loading/Shimmering representation
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.03f)),
+                                    shape = RoundedCornerShape(12.dp),
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.06f))
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(16.dp),
+                                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(14.dp),
+                                                strokeWidth = 2.dp,
+                                                color = MaterialTheme.colorScheme.secondary
+                                            )
+                                            Text(
+                                                text = "Analyzing historical contexts...",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.secondary
+                                            )
+                                        }
+                                        
+                                        LinearProgressIndicator(
+                                            modifier = Modifier.fillMaxWidth().height(2.dp),
+                                            color = MaterialTheme.colorScheme.secondary,
+                                            trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
+                                        )
+                                        
+                                        // Mock skeleton lines
+                                        Box(modifier = Modifier.fillMaxWidth(0.9f).height(12.dp).background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f), RoundedCornerShape(4.dp)))
+                                        Box(modifier = Modifier.fillMaxWidth(0.75f).height(12.dp).background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f), RoundedCornerShape(4.dp)))
+                                        Box(modifier = Modifier.fillMaxWidth(0.85f).height(12.dp).background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f), RoundedCornerShape(4.dp)))
+                                    }
+                                }
+                            } else {
+                                // Render AI Exegesis Output
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.04f)),
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f)),
+                                    shape = RoundedCornerShape(14.dp)
+                                ) {
+                                    Column(modifier = Modifier.padding(16.dp)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Row(
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.AutoAwesome,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.secondary,
+                                                    modifier = Modifier.size(14.dp)
+                                                )
+                                                Text(
+                                                    text = "AI Exegesis (${viewModel.activeAiTone})",
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.secondary
+                                                )
+                                            }
+                                            // Regenerate action
+                                            IconButton(
+                                                onClick = { viewModel.generateAiTafsirForVerse(viewModel.selectedSurah, openTafsir) },
+                                                modifier = Modifier.size(20.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Refresh,
+                                                    contentDescription = "Regenerate AI Tafsir",
+                                                    tint = MaterialTheme.colorScheme.secondary,
+                                                    modifier = Modifier.size(12.dp)
+                                                )
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.height(12.dp))
+
+                                        Text(
+                                            text = viewModel.aiTafsirExplanation ?: "",
+                                            fontSize = 13.sp,
+                                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.95f),
+                                            lineHeight = 19.sp,
+                                            fontStyle = FontStyle.Normal
+                                        )
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(24.dp))
+
+                            // Classical Scholarly Reference
+                            Text(
+                                text = "CLASSICAL SCHOLARLY REFERENCES",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.secondary,
+                                letterSpacing = 1.sp
+                            )
+                            
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.02f)),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Column(modifier = Modifier.padding(14.dp)) {
+                                    Text(
+                                        text = "Tafsir Ibn Kathir / Traditional Scholar consensus:",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(
+                                        text = openTafsir.tafsir,
+                                        fontSize = 13.sp,
+                                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.85f),
+                                        lineHeight = 18.sp
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
         }
+    }
     }
 }
 
