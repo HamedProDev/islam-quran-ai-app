@@ -2203,6 +2203,70 @@ fun QuranReaderScreen(viewModel: IslamQuranViewModel) {
                                     }
                                 }
                             }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            // VOLUME CONTROL
+                            Text(
+                                text = "VOLUME CONTROL",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.secondary,
+                                letterSpacing = 1.sp,
+                                modifier = Modifier.padding(bottom = 6.dp)
+                            )
+
+                            var lastVolumeBeforeMute by remember { mutableStateOf(1.0f) }
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(12.dp))
+                                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                IconButton(
+                                    onClick = {
+                                        if (viewModel.audioVolume > 0f) {
+                                            lastVolumeBeforeMute = viewModel.audioVolume
+                                            viewModel.changeAudioVolume(0f)
+                                        } else {
+                                            viewModel.changeAudioVolume(lastVolumeBeforeMute)
+                                        }
+                                    },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = if (viewModel.audioVolume > 0f) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
+                                        contentDescription = "Mute Toggle",
+                                        tint = MaterialTheme.colorScheme.secondary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+
+                                Slider(
+                                    value = viewModel.audioVolume,
+                                    onValueChange = { viewModel.changeAudioVolume(it) },
+                                    colors = SliderDefaults.colors(
+                                        activeTrackColor = MaterialTheme.colorScheme.secondary,
+                                        inactiveTrackColor = Color.White.copy(alpha = 0.2f),
+                                        thumbColor = MaterialTheme.colorScheme.secondary
+                                    ),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(18.dp)
+                                )
+
+                                Text(
+                                    text = "${(viewModel.audioVolume * 100).toInt()}%",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White,
+                                    modifier = Modifier.width(36.dp),
+                                    textAlign = TextAlign.End
+                                )
+                            }
                         }
                     }
                 }

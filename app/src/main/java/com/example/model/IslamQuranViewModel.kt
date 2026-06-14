@@ -656,6 +656,18 @@ class IslamQuranViewModel(application: Application) : AndroidViewModel(applicati
 
     var audioRepeatMode by mutableStateOf("None") // "None", "Verse", "Surah"
     var audioSpeed by mutableStateOf(1.0f) // 0.75f, 1.0f, 1.25f, 1.5f
+    var audioVolume by mutableStateOf(1.0f)
+
+    fun changeAudioVolume(volume: Float) {
+        audioVolume = volume.coerceIn(0f, 1f)
+        mediaPlayer?.let { mp ->
+            try {
+                mp.setVolume(audioVolume, audioVolume)
+            } catch (e: Exception) {
+                // Ignore
+            }
+        }
+    }
 
     private var audioJob: Job? = null
     private var mediaPlayer: android.media.MediaPlayer? = null
@@ -760,6 +772,9 @@ class IslamQuranViewModel(application: Application) : AndroidViewModel(applicati
                     .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
                     .build()
             )
+            try {
+                setVolume(audioVolume, audioVolume)
+            } catch (e: Exception) {}
             try {
                 setDataSource(audioUrl)
                 prepareAsync()
@@ -1513,6 +1528,9 @@ class IslamQuranViewModel(application: Application) : AndroidViewModel(applicati
                     .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
                     .build()
             )
+            try {
+                setVolume(audioVolume, audioVolume)
+            } catch (e: Exception) {}
             try {
                 setDataSource(audioUrl)
                 prepareAsync()
