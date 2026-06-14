@@ -1381,6 +1381,52 @@ class IslamQuranViewModel(application: Application) : AndroidViewModel(applicati
     var selectedLanguage by mutableStateOf("English (US)")
     var selectedReciter by mutableStateOf("Sheikh Mishary Al-Afasy")
     var isPremiumEnabled by mutableStateOf(false) // Subscription control
+    var showPaywall by mutableStateOf(false)
+    var selectedPaywallPlan by mutableStateOf("annual") // "monthly", "annual", "lifetime"
+    var isSubscribingLoading by mutableStateOf(false)
+    var subscribingStepText by mutableStateOf("")
+    var subscriptionSuccess by mutableStateOf(false)
+
+    fun startSubscriptionSimulation(planName: String, cardNo: String, holderName: String, completion: () -> Unit) {
+        viewModelScope.launch {
+            isSubscribingLoading = true
+            subscriptionSuccess = false
+            
+            subscribingStepText = "Securing end-to-end encrypted channel..."
+            delay(1000)
+            subscribingStepText = "Authorizing transaction with premium gateway..."
+            delay(1200)
+            subscribingStepText = "Registering subscription ledger..."
+            delay(1000)
+            
+            isPremiumEnabled = true
+            subscriptionSuccess = true
+            isSubscribingLoading = false
+            activeSubscriptions += 1
+            
+            // Add user with premium state to admin users list for realism
+            val newUser = AdminUser(
+                id = (adminUsersList.value.size + 1).toString(),
+                name = if (holderName.isNotBlank()) holderName else "Premium Member",
+                email = currentUserEmail ?: "member@faith.net",
+                subscription = "Premium (${planName.replaceFirstChar { it.uppercase() }})",
+                status = "Active",
+                joinDate = "2026-06-14"
+            )
+            adminUsersList.value = adminUsersList.value + newUser
+            
+            selectAdminActivity("User successfully activated Premium subscription [$planName Plan]", "USER")
+            
+            completion()
+        }
+    }
+
+    fun cancelSubscriptionSimulation() {
+        isPremiumEnabled = false
+        subscriptionSuccess = false
+        selectAdminActivity("User canceled Premium subscription", "USER")
+        if (activeSubscriptions > 0) activeSubscriptions -= 1
+    }
 
     // Gate premium features
     fun checkPremiumFeature(onAllowed: () -> Unit, onRequired: () -> Unit) {

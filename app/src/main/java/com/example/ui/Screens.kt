@@ -1885,7 +1885,15 @@ fun QuranReaderScreen(viewModel: IslamQuranViewModel) {
 
                                 IconButton(
                                     onClick = {
-                                        if (viewModel.isAudioPlaying) viewModel.stopAudio() else viewModel.startAudio()
+                                        if (viewModel.isAudioPlaying) {
+                                            viewModel.stopAudio()
+                                        } else {
+                                            if (viewModel.isPremiumEnabled || !viewModel.gatePremiumRecitations) {
+                                                 viewModel.startAudio()
+                                            } else {
+                                                 viewModel.showPaywall = true
+                                            }
+                                        }
                                     },
                                     modifier = Modifier
                                         .size(32.dp)
@@ -2022,7 +2030,15 @@ fun QuranReaderScreen(viewModel: IslamQuranViewModel) {
 
                                 IconButton(
                                     onClick = {
-                                        if (viewModel.isAudioPlaying) viewModel.stopAudio() else viewModel.startAudio()
+                                        if (viewModel.isAudioPlaying) {
+                                            viewModel.stopAudio()
+                                        } else {
+                                            if (viewModel.isPremiumEnabled || !viewModel.gatePremiumRecitations) {
+                                                 viewModel.startAudio()
+                                            } else {
+                                                 viewModel.showPaywall = true
+                                            }
+                                        }
                                     },
                                     modifier = Modifier
                                         .size(64.dp)
@@ -2418,47 +2434,152 @@ fun QuranReaderScreen(viewModel: IslamQuranViewModel) {
                             Spacer(modifier = Modifier.height(8.dp))
 
                             if (viewModel.aiTafsirExplanation == null && !viewModel.isAiTafsirLoading) {
-                                // Prompt the user to analyze
+                                val hasPremiumAccess = viewModel.isPremiumEnabled || !viewModel.gateAdvancedAiTafsir
+                                
                                 Card(
                                     modifier = Modifier.fillMaxWidth(),
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.02f)),
-                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)),
-                                    shape = RoundedCornerShape(12.dp)
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = if (hasPremiumAccess) {
+                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.02f)
+                                        } else {
+                                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
+                                        }
+                                    ),
+                                    border = BorderStroke(
+                                        1.dp,
+                                        if (hasPremiumAccess) {
+                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
+                                        } else {
+                                            MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f)
+                                        }
+                                    ),
+                                    shape = RoundedCornerShape(16.dp)
                                 ) {
                                     Column(
-                                        modifier = Modifier.padding(16.dp),
+                                        modifier = Modifier.padding(18.dp),
                                         horizontalAlignment = Alignment.CenterHorizontally
                                     ) {
-                                        Text(
-                                            text = "Leverage advanced AI context to unpack classical jurisprudence, historical contexts, and spiritual guidance based on: ${viewModel.activeAiTone}.",
-                                            fontSize = 12.sp,
-                                            textAlign = TextAlign.Center,
-                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                                            lineHeight = 18.sp
-                                        )
-                                        Spacer(modifier = Modifier.height(14.dp))
-                                        Button(
-                                            onClick = { viewModel.generateAiTafsirForVerse(viewModel.selectedSurah, openTafsir) },
-                                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                                            shape = RoundedCornerShape(10.dp),
-                                            modifier = Modifier.fillMaxWidth()
-                                        ) {
-                                            Row(
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                                verticalAlignment = Alignment.CenterVertically
+                                        if (hasPremiumAccess) {
+                                            Text(
+                                                text = "Leverage advanced AI context to unpack classical jurisprudence, historical contexts, and spiritual guidance based on: ${viewModel.activeAiTone}.",
+                                                fontSize = 12.sp,
+                                                textAlign = TextAlign.Center,
+                                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                                                lineHeight = 18.sp
+                                            )
+                                            Spacer(modifier = Modifier.height(14.dp))
+                                            Button(
+                                                onClick = {
+                                                    viewModel.generateAiTafsirForVerse(viewModel.selectedSurah, openTafsir)
+                                                },
+                                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                                                shape = RoundedCornerShape(10.dp),
+                                                modifier = Modifier.fillMaxWidth()
                                             ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.AutoAwesome,
-                                                    contentDescription = null,
-                                                    tint = Color.White,
-                                                    modifier = Modifier.size(16.dp)
-                                                )
-                                                Text(
-                                                    text = "Generate AI Exegesis",
-                                                    fontSize = 12.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = Color.White
-                                                )
+                                                Row(
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.AutoAwesome,
+                                                        contentDescription = null,
+                                                        tint = Color.White,
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                    Text(
+                                                        text = "Generate AI Exegesis",
+                                                        fontSize = 12.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color.White
+                                                    )
+                                                }
+                                            }
+                                        } else {
+                                            Text(
+                                                text = "SCHOLAR AI EXEGESIS HUB",
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.secondary,
+                                                letterSpacing = 1.sp
+                                            )
+                                            
+                                            Spacer(modifier = Modifier.height(12.dp))
+                                            
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                            ) {
+                                                Column(
+                                                    modifier = Modifier
+                                                        .weight(1f)
+                                                        .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(10.dp))
+                                                        .padding(10.dp)
+                                                ) {
+                                                    Text(
+                                                        text = "FREE STANDARD",
+                                                        fontSize = 9.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color.White.copy(alpha = 0.4f)
+                                                    )
+                                                    Spacer(modifier = Modifier.height(6.dp))
+                                                    Text(
+                                                        text = "• Basic translations only\n• No scholar tone modes\n• No legal jurisprudence",
+                                                        fontSize = 10.sp,
+                                                        color = Color.White.copy(alpha = 0.4f),
+                                                        lineHeight = 14.sp
+                                                    )
+                                                }
+                                                
+                                                Column(
+                                                    modifier = Modifier
+                                                        .weight(1.1f)
+                                                        .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.06f), RoundedCornerShape(10.dp))
+                                                        .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
+                                                        .padding(10.dp)
+                                                ) {
+                                                    Text(
+                                                        text = "SCHOLAR PREMIUM",
+                                                        fontSize = 9.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = MaterialTheme.colorScheme.secondary
+                                                    )
+                                                    Spacer(modifier = Modifier.height(6.dp))
+                                                    Text(
+                                                        text = "• Advanced scholar engine\n• 4 customized academic tones\n• Contextual rulings index",
+                                                        fontSize = 10.sp,
+                                                        color = Color.White.copy(alpha = 0.85f),
+                                                        lineHeight = 14.sp
+                                                    )
+                                                }
+                                            }
+                                            
+                                            Spacer(modifier = Modifier.height(16.dp))
+                                            
+                                            Button(
+                                                onClick = { viewModel.showPaywall = true },
+                                                colors = ButtonDefaults.buttonColors(
+                                                    containerColor = MaterialTheme.colorScheme.secondary,
+                                                    contentColor = Color.Black
+                                                ),
+                                                shape = RoundedCornerShape(10.dp),
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                Row(
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.LockOpen,
+                                                        contentDescription = null,
+                                                        tint = Color.Black,
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                    Text(
+                                                        text = "Upgrade to Scholar Premium",
+                                                        fontSize = 11.sp,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                }
                                             }
                                         }
                                     }
@@ -4367,7 +4488,7 @@ fun MoreSettingsScreen(
                 .clip(RoundedCornerShape(16.dp))
                 .background(
                     if (viewModel.isPremiumEnabled) {
-                        MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f)
+                        MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f)
                     } else {
                         MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
                     }
@@ -4377,7 +4498,7 @@ fun MoreSettingsScreen(
                     if (viewModel.isPremiumEnabled) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
                     RoundedCornerShape(16.dp)
                 )
-                .padding(16.dp)
+                .padding(18.dp)
         ) {
             Column {
                 Row(
@@ -4388,51 +4509,67 @@ fun MoreSettingsScreen(
                     Column {
                         Text(
                             text = "Islam Quran AI Premium",
-                            fontSize = 15.sp,
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.primary,
+                            letterSpacing = 0.5.sp
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = if (viewModel.isPremiumEnabled) "Unlimited Scholar Verified Service Active" else "Support our servers and unlock advanced tools",
+                            text = if (viewModel.isPremiumEnabled) "Unlimited Access Active (Premium Tier)" else "Support our servers and unlock advanced exegesis models",
                             fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.60f)
                         )
                     }
-                    
-                    Switch(
-                        checked = viewModel.isPremiumEnabled,
-                        onCheckedChange = {
-                            viewModel.isPremiumEnabled = it
-                            viewModel.selectAdminActivity("User subscription state toggled to $it", "USER")
-                        },
-                        colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.secondary)
-                    )
                 }
                 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(14.dp))
                 
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Bottom
+                ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(text = "Premium Features Active:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(text = "• Advanced AI Tafsir Querying", fontSize = 11.sp, color = MaterialTheme.colorScheme.onBackground)
-                        Text(text = "• Offline Reading Databases", fontSize = 11.sp, color = MaterialTheme.colorScheme.onBackground)
-                        Text(text = "• Global Recitation Streaming", fontSize = 11.sp, color = MaterialTheme.colorScheme.onBackground)
+                        Text(
+                            text = "PREMIUM UTILITIES",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.secondary,
+                            letterSpacing = 1.sp
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(text = "• Advanced Scholar AI Exegesis", fontSize = 11.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f))
+                        Text(text = "• Interactive Tone Control Models", fontSize = 11.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f))
+                        Text(text = "• Premium Global Reciter Nodes", fontSize = 11.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f))
                     }
                     
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.Bottom)
-                            .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    Column(
+                        horizontalAlignment = Alignment.End,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(
-                            text = if (viewModel.isPremiumEnabled) "SICK ACCESS" else "$4.99/mo",
-                            color = Color.White,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Black
-                        )
+                        if (viewModel.isPremiumEnabled) {
+                            Button(
+                                onClick = { viewModel.cancelSubscriptionSimulation() },
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.08f), contentColor = MaterialTheme.colorScheme.error),
+                                shape = RoundedCornerShape(10.dp),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.2f)),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                modifier = Modifier.height(34.dp)
+                            ) {
+                                Text(text = "Cancel Service", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        } else {
+                            Button(
+                                onClick = { viewModel.showPaywall = true },
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary, contentColor = Color.White),
+                                shape = RoundedCornerShape(10.dp),
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                                modifier = Modifier.height(36.dp)
+                            ) {
+                                Text(text = "Upgrade Plan", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
                     }
                 }
             }
@@ -5510,6 +5647,722 @@ fun CompanionAudioPlayerWidget(viewModel: IslamQuranViewModel) {
                     color = MaterialTheme.colorScheme.secondary,
                     trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
                 )
+            }
+        }
+    }
+}
+
+@Composable
+fun SubscriptionPaywallOverlay(viewModel: IslamQuranViewModel) {
+    val show = viewModel.showPaywall
+    val scope = rememberCoroutineScope()
+
+    AnimatedVisibility(
+        visible = show,
+        enter = fadeIn(),
+        exit = fadeOut()
+    ) {
+        val darkMaskColor = Color.Black.copy(alpha = 0.65f)
+
+        // Overlay mask
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(darkMaskColor)
+                .clickable(
+                    enabled = !viewModel.isSubscribingLoading,
+                    onClick = { viewModel.showPaywall = false }
+                ),
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            // Animated Slide Up Container
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.85f)
+                    .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                    .background(Color(0xFF121824)) // Modern minimal deep slate
+                    .clickable(enabled = true, onClick = {}) // block taps from passing through
+                    .padding(horizontal = 20.dp, vertical = 24.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    // Header Drag Bar representation
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterHorizontally)
+                            .width(40.dp)
+                            .height(4.dp)
+                            .background(Color.White.copy(alpha = 0.15f), RoundedCornerShape(2.dp))
+                    )
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    if (viewModel.subscriptionSuccess) {
+                        // SUCCESS STATUS PAGE
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Verified,
+                                contentDescription = "Active Status",
+                                tint = MaterialTheme.colorScheme.secondary,
+                                modifier = Modifier.size(72.dp)
+                            )
+
+                            Spacer(modifier = Modifier.height(24.dp))
+
+                            Text(
+                                text = "Premium Activated Successfully",
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                textAlign = TextAlign.Center
+                            )
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            Text(
+                                text = "Welcome to the elite scholar experience. Unlimited exegesis, live citation memory, and multi-node stream access are now active on your account.",
+                                fontSize = 13.sp,
+                                color = Color.White.copy(alpha = 0.6f),
+                                textAlign = TextAlign.Center,
+                                lineHeight = 19.sp,
+                                modifier = Modifier.padding(horizontal = 16.dp)
+                            )
+                            
+                            Spacer(modifier = Modifier.height(40.dp))
+
+                            Button(
+                                onClick = { viewModel.showPaywall = false },
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(52.dp)
+                            ) {
+                                Text(
+                                    text = "Begin Premium Experience",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.Black
+                                )
+                            }
+                        }
+                    } else if (viewModel.isSubscribingLoading) {
+                        // DYNAMIC STEP LOADING PAGE
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(56.dp),
+                                color = MaterialTheme.colorScheme.secondary,
+                                strokeWidth = 4.dp
+                            )
+
+                            Spacer(modifier = Modifier.height(32.dp))
+
+                            Text(
+                                text = "PROCESSING SECURE TRANSACTION",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.secondary,
+                                letterSpacing = 1.5.sp
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Text(
+                                text = viewModel.subscribingStepText,
+                                fontSize = 13.sp,
+                                color = Color.White.copy(alpha = 0.8f),
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(horizontal = 24.dp)
+                            )
+                        }
+                    } else {
+                        // MAIN STANDARD PAYWALL PAYMENTS FORMS
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = "ISLAM QURAN AI",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.secondary,
+                                    letterSpacing = 1.5.sp
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Premium Subscription",
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
+
+                            IconButton(
+                                onClick = { viewModel.showPaywall = false },
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .background(Color.White.copy(alpha = 0.05f), CircleShape)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Close",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(18.dp))
+
+                        // TIER COMPARISON SLIDER & FEATURES COMPONENT
+                        var selectedTierTab by remember { mutableStateOf("premium") } // "free" or "premium"
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(38.dp)
+                                .background(Color.White.copy(alpha = 0.03f), RoundedCornerShape(10.dp))
+                                .padding(3.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (selectedTierTab == "free") Color.White.copy(alpha = 0.08f) else Color.Transparent)
+                                    .clickable { selectedTierTab = "free" },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "FREE STANDARD TIER",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (selectedTierTab == "free") Color.White else Color.White.copy(alpha = 0.4f)
+                                )
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (selectedTierTab == "premium") Color.White.copy(alpha = 0.08f) else Color.Transparent)
+                                    .clickable { selectedTierTab = "premium" },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "SCHOLAR PREMIUM",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (selectedTierTab == "premium") MaterialTheme.colorScheme.secondary else Color.White.copy(alpha = 0.4f)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        AnimatedContent(
+                            targetState = selectedTierTab,
+                            transitionSpec = {
+                                fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(220))
+                            },
+                            label = "TierTabAnim"
+                        ) { tierState ->
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(14.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(16.dp))
+                                    .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(16.dp))
+                                    .padding(16.dp)
+                            ) {
+                                if (tierState == "free") {
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                        verticalAlignment = Alignment.Top
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Info,
+                                            contentDescription = null,
+                                            tint = Color.White.copy(alpha = 0.35f),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Column {
+                                            Text(
+                                                text = "Core Translation Data",
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White
+                                            )
+                                            Text(
+                                                text = "Standard access to Sahih International databases for reading. Limited to localized device databases.",
+                                                fontSize = 11.sp,
+                                                color = Color.White.copy(alpha = 0.5f),
+                                                lineHeight = 15.sp
+                                            )
+                                        }
+                                    }
+
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                        verticalAlignment = Alignment.Top
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.VolumeMute,
+                                            contentDescription = null,
+                                            tint = Color.White.copy(alpha = 0.35f),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Column {
+                                            Text(
+                                                text = "Fragmentary Verse Playback",
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White
+                                            )
+                                            Text(
+                                                text = "Plays separate audio segments manually. Continuous stream, speed multipliers, and looping patterns are blocked.",
+                                                fontSize = 11.sp,
+                                                color = Color.White.copy(alpha = 0.5f),
+                                                lineHeight = 15.sp
+                                            )
+                                        }
+                                    }
+
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                        verticalAlignment = Alignment.Top
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Block,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.error.copy(alpha = 0.5f),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Column {
+                                            Text(
+                                                text = "AI Exegesis Restrictions",
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White.copy(alpha = 0.70f)
+                                            )
+                                            Text(
+                                                text = "No access to live generative Tafsir models or customized scholastic academic filter options.",
+                                                fontSize = 11.sp,
+                                                color = Color.White.copy(alpha = 0.35f),
+                                                lineHeight = 15.sp
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                        verticalAlignment = Alignment.Top
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.AutoAwesome,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.secondary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Column {
+                                            Text(
+                                                text = "Advanced Scholar AI Exegesis",
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White
+                                            )
+                                            Text(
+                                                text = "Query live contextual Tafsir, historical jurisprudence, and divine scholastic research safely with zero rules bounds.",
+                                                fontSize = 11.sp,
+                                                color = Color.White.copy(alpha = 0.5f),
+                                                lineHeight = 15.sp
+                                            )
+                                        }
+                                    }
+
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                        verticalAlignment = Alignment.Top
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.VolumeUp,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.secondary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Column {
+                                            Text(
+                                                text = "Seamless Loop & Speed reciter streams",
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White
+                                            )
+                                            Text(
+                                                text = "Continuous automatic playback of whole surahs, dual-speaker setups, speed variables, and offline caching nodes.",
+                                                fontSize = 11.sp,
+                                                color = Color.White.copy(alpha = 0.5f),
+                                                lineHeight = 15.sp
+                                            )
+                                        }
+                                    }
+
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                        verticalAlignment = Alignment.Top
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Verified,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.secondary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Column {
+                                            Text(
+                                                text = "Dynamic Academic Jurist Filters",
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White
+                                            )
+                                            Text(
+                                                text = "Instantly configure the AI to emulate traditionalist, structuralist, rationalist, or simplified parenting modes.",
+                                                fontSize = 11.sp,
+                                                color = Color.White.copy(alpha = 0.5f),
+                                                lineHeight = 15.sp
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        // SELECTABLE PLANS
+                        Text(
+                            text = "SELECT PLAN",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.secondary,
+                            letterSpacing = 1.sp
+                        )
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        val plans = listOf(
+                            Triple("monthly", "Monthly Tier", "$4.99/mo"),
+                            Triple("annual", "Annual Sparing", "$2.49/mo equivalent ($29.99/yr)"),
+                            Triple("lifetime", "Lifetime Devotion", "$79.99 (one-time)")
+                        )
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            plans.forEach { (id, title, price) ->
+                                val isSelected = viewModel.selectedPaywallPlan == id
+                                val borderAlpha = if (isSelected) 1.0f else 0.1f
+                                val bgAlpha = if (isSelected) 0.08f else 0.02f
+                                val cardWeight = if (id == "annual") 1.2f else 1.0f // Highlight annual plan weight
+
+                                Box(
+                                    modifier = Modifier
+                                        .weight(cardWeight)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(Color.White.copy(alpha = bgAlpha))
+                                        .border(
+                                            if (isSelected) 1.5.dp else 1.dp,
+                                            if (isSelected) MaterialTheme.colorScheme.secondary else Color.White.copy(alpha = borderAlpha),
+                                            RoundedCornerShape(12.dp)
+                                        )
+                                        .clickable { viewModel.selectedPaywallPlan = id }
+                                        .padding(10.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        if (id == "annual") {
+                                            Box(
+                                                modifier = Modifier
+                                                    .background(MaterialTheme.colorScheme.secondary, RoundedCornerShape(4.dp))
+                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                            ) {
+                                                Text(
+                                                    text = "BEST VALUE",
+                                                    fontSize = 7.sp,
+                                                    fontWeight = FontWeight.Black,
+                                                    color = Color.Black
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                        }
+
+                                        Text(
+                                            text = title.split(" ").first(),
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (isSelected) MaterialTheme.colorScheme.secondary else Color.White
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = price,
+                                            fontSize = 9.sp,
+                                            color = Color.White.copy(alpha = 0.6f),
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        // PAYMENT ENCRYPTED DETAILS FORM
+                        var paymentTab by remember { mutableStateOf("card") } // "card" or "gpay"
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(38.dp)
+                                .background(Color.White.copy(alpha = 0.03f), RoundedCornerShape(10.dp))
+                                .padding(3.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (paymentTab == "card") Color.White.copy(alpha = 0.08f) else Color.Transparent)
+                                    .clickable { paymentTab = "card" },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "Credit / Debit Card",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (paymentTab == "card") Color.White else Color.White.copy(alpha = 0.4f)
+                                )
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (paymentTab == "gpay") Color.White.copy(alpha = 0.08f) else Color.Transparent)
+                                    .clickable { paymentTab = "gpay" },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "Google Pay",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (paymentTab == "gpay") Color.White else Color.White.copy(alpha = 0.4f)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        var cardNo by remember { mutableStateOf("") }
+                        var cardName by remember { mutableStateOf("") }
+                        var cardExpiry by remember { mutableStateOf("") }
+                        var cardCvv by remember { mutableStateOf("") }
+
+                        if (paymentTab == "card") {
+                            Text(
+                                text = "ENCRYPTED CARD SUBMISSION",
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White.copy(alpha = 0.3f),
+                                letterSpacing = 1.sp
+                            )
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // Cardholder name
+                            OutlinedTextField(
+                                value = cardName,
+                                onValueChange = { cardName = it },
+                                label = { Text("Cardholder Name", fontSize = 11.sp, color = Color.White.copy(alpha = 0.4f)) },
+                                modifier = Modifier.fillMaxWidth(),
+                                isError = false,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = MaterialTheme.colorScheme.secondary,
+                                    unfocusedBorderColor = Color.White.copy(alpha = 0.1f),
+                                    focusedTextColor = Color.White,
+                                    unfocusedTextColor = Color.White
+                                ),
+                                shape = RoundedCornerShape(10.dp),
+                                singleLine = true
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // Card Number
+                            OutlinedTextField(
+                                value = cardNo,
+                                onValueChange = { input ->
+                                    val digits = input.filter { it.isDigit() }
+                                    if (digits.length <= 16) {
+                                        cardNo = digits.chunked(4).joinToString(" ")
+                                    }
+                                },
+                                label = { Text("Card Number", fontSize = 11.sp, color = Color.White.copy(alpha = 0.4f)) },
+                                modifier = Modifier.fillMaxWidth(),
+                                keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = MaterialTheme.colorScheme.secondary,
+                                    unfocusedBorderColor = Color.White.copy(alpha = 0.1f),
+                                    focusedTextColor = Color.White,
+                                    unfocusedTextColor = Color.White
+                                ),
+                                shape = RoundedCornerShape(10.dp),
+                                singleLine = true
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                OutlinedTextField(
+                                    value = cardExpiry,
+                                    onValueChange = { input ->
+                                        val digits = input.filter { it.isDigit() }
+                                        if (digits.length <= 4) {
+                                            cardExpiry = if (digits.length >= 3) {
+                                                "${digits.take(2)}/${digits.drop(2)}"
+                                            } else {
+                                                digits
+                                            }
+                                        }
+                                    },
+                                    placeholder = { Text("MM/YY", fontSize = 11.sp, color = Color.White.copy(alpha = 0.2f)) },
+                                    label = { Text("Expiry Date", fontSize = 11.sp, color = Color.White.copy(alpha = 0.4f)) },
+                                    modifier = Modifier.weight(1f),
+                                    keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = MaterialTheme.colorScheme.secondary,
+                                        unfocusedBorderColor = Color.White.copy(alpha = 0.1f),
+                                        focusedTextColor = Color.White,
+                                        unfocusedTextColor = Color.White
+                                    ),
+                                    shape = RoundedCornerShape(10.dp),
+                                    singleLine = true
+                                )
+
+                                OutlinedTextField(
+                                    value = cardCvv,
+                                    onValueChange = { input ->
+                                        val digits = input.filter { it.isDigit() }
+                                        if (digits.length <= 3) cardCvv = digits
+                                    },
+                                    placeholder = { Text("000", fontSize = 11.sp, color = Color.White.copy(alpha = 0.2f)) },
+                                    label = { Text("CVV Code", fontSize = 11.sp, color = Color.White.copy(alpha = 0.4f)) },
+                                    modifier = Modifier.weight(1f),
+                                    keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = MaterialTheme.colorScheme.secondary,
+                                        unfocusedBorderColor = Color.White.copy(alpha = 0.1f),
+                                        focusedTextColor = Color.White,
+                                        unfocusedTextColor = Color.White
+                                    ),
+                                    shape = RoundedCornerShape(10.dp),
+                                    singleLine = true
+                                )
+                            }
+                        } else {
+                            // GOOGLE PAY TAB
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(180.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(Color.White.copy(alpha = 0.02f))
+                                    .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(14.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(
+                                        imageVector = Icons.Default.Nfc,
+                                        contentDescription = "Wallet Link",
+                                        tint = MaterialTheme.colorScheme.secondary.copy(alpha = 0.4f),
+                                        modifier = Modifier.size(36.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Text(
+                                        text = "Google Pay Ledger Connected",
+                                        fontSize = 12.sp,
+                                        color = Color.White.copy(alpha = 0.8f),
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "One-tap payment authorized secure channel",
+                                        fontSize = 10.sp,
+                                        color = Color.White.copy(alpha = 0.4f)
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(28.dp))
+
+                        // ACTIVE SUBMIT PROCESS BUTTON
+                        Button(
+                            onClick = {
+                                val simulatedCard = if (paymentTab == "card") cardNo else "Google Pay Auth"
+                                val simulatedName = if (paymentTab == "card") cardName else "Wallet Owner"
+                                viewModel.startSubscriptionSimulation(
+                                    planName = viewModel.selectedPaywallPlan,
+                                    cardNo = simulatedCard,
+                                    holderName = simulatedName
+                                ) {}
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.secondary,
+                                contentColor = Color.Black
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp)
+                        ) {
+                            Text(
+                                text = "Authorize Secure Subscription",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Text(
+                            text = "By authorizing this transaction you agree to our Terms of Devotion. Encrypted and verified by secure endpoints. Cancel anytime directly in preference tools.",
+                            fontSize = 9.sp,
+                            color = Color.White.copy(alpha = 0.3f),
+                            textAlign = TextAlign.Center,
+                            lineHeight = 12.sp,
+                            modifier = Modifier.padding(horizontal = 8.dp)
+                        )
+                    }
+                }
             }
         }
     }

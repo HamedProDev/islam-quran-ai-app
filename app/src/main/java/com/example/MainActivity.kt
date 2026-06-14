@@ -73,55 +73,60 @@ class MainActivity : ComponentActivity() {
                         }
                     )
                 } else {
-                    Scaffold(
-                        modifier = Modifier.fillMaxSize(),
-                        containerColor = MaterialTheme.colorScheme.background,
-                        bottomBar = {
-                            // Hide user bottom nav when admin view is presented
-                            if (!showAdminDashboard) {
-                                AnimatedBottomNavigationBar(viewModel = viewModel)
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        Scaffold(
+                            modifier = Modifier.fillMaxSize(),
+                            containerColor = MaterialTheme.colorScheme.background,
+                            bottomBar = {
+                                // Hide user bottom nav when admin view is presented
+                                if (!showAdminDashboard) {
+                                    AnimatedBottomNavigationBar(viewModel = viewModel)
+                                }
                             }
-                        }
-                    ) { innerPadding ->
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(bottom = if (showAdminDashboard) 0.dp else innerPadding.calculateBottomPadding())
-                        ) {
-                            AnimatedContent(
-                                targetState = showAdminDashboard,
-                                transitionSpec = {
-                                    slideInVertically(animationSpec = spring(), initialOffsetY = { it }) togetherWith
-                                            slideOutVertically(animationSpec = spring(), targetOffsetY = { it })
-                                },
-                                label = "AdminPanelSwap"
-                            ) { isAdmin ->
-                                if (isAdmin) {
-                                    AdminDashboardScreen(
-                                        viewModel = viewModel,
-                                        onBackClick = { showAdminDashboard = false }
-                                    )
-                                } else {
-                                    // User Side App Switcher
-                                    Crossfade(
-                                        targetState = viewModel.currentTab,
-                                        animationSpec = spring(),
-                                        label = "UserPagesCrossfade"
-                                    ) { tab ->
-                                        when (tab) {
-                                            AppTab.HOME -> HomeScreen(viewModel = viewModel)
-                                            AppTab.QURAN -> QuranReaderScreen(viewModel = viewModel)
-                                            AppTab.AI_ASSISTANT -> AiAssistantScreen(viewModel = viewModel)
-                                            AppTab.PRAYER -> PrayerToolsScreen(viewModel = viewModel)
-                                            AppTab.MORE -> MoreSettingsScreen(
-                                                viewModel = viewModel,
-                                                onAdminClick = { showAdminDashboard = true }
-                                            )
+                        ) { innerPadding ->
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(bottom = if (showAdminDashboard) 0.dp else innerPadding.calculateBottomPadding())
+                            ) {
+                                AnimatedContent(
+                                    targetState = showAdminDashboard,
+                                    transitionSpec = {
+                                        slideInVertically(animationSpec = spring(), initialOffsetY = { it }) togetherWith
+                                                slideOutVertically(animationSpec = spring(), targetOffsetY = { it })
+                                    },
+                                    label = "AdminPanelSwap"
+                                ) { isAdmin ->
+                                    if (isAdmin) {
+                                        AdminDashboardScreen(
+                                            viewModel = viewModel,
+                                            onBackClick = { showAdminDashboard = false }
+                                        )
+                                    } else {
+                                        // User Side App Switcher
+                                        Crossfade(
+                                            targetState = viewModel.currentTab,
+                                            animationSpec = spring(),
+                                            label = "UserPagesCrossfade"
+                                        ) { tab ->
+                                            when (tab) {
+                                                AppTab.HOME -> HomeScreen(viewModel = viewModel)
+                                                AppTab.QURAN -> QuranReaderScreen(viewModel = viewModel)
+                                                AppTab.AI_ASSISTANT -> AiAssistantScreen(viewModel = viewModel)
+                                                AppTab.PRAYER -> PrayerToolsScreen(viewModel = viewModel)
+                                                AppTab.MORE -> MoreSettingsScreen(
+                                                    viewModel = viewModel,
+                                                    onAdminClick = { showAdminDashboard = true }
+                                                )
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
+
+                        // Seamless luxury premium paywall layer
+                        SubscriptionPaywallOverlay(viewModel = viewModel)
                     }
                 }
             }
